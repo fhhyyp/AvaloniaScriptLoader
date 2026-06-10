@@ -11,7 +11,7 @@ namespace AvaloniaScriptLoader.Builder;
 
 /// <summary>
 /// 属性绑定器 — 将描述符中的属性值映射到 Avalonia 控件属性
-/// 支持 InpcValue 自动订阅（脚本变量变更 → UI 自动更新）
+/// 支持 InpcValue/ComputedValue 自动订阅 + 双向绑定
 /// </summary>
 public class PropertyBinder
 {
@@ -33,10 +33,10 @@ public class PropertyBinder
             if (PropertyNames.IsSetterMethod(name)) continue;
             if (name is "children" or "content") continue;
 
-            // 检测 InpcValue 包装 → 自动订阅
-            if (InpcFactory.IsInpcWrapper(value))
+            // 检测可观察包装（inpc / computed）
+            if (InpcFactory.IsObservableWrapper(value))
             {
-                BindInpcValue(control, name, value);
+                BindObservableValue(control, name, value);
             }
             else
             {
@@ -46,36 +46,102 @@ public class PropertyBinder
     }
 
     /// <summary>
-    /// 对 InpcValue 包装对象建立自动绑定：
+    /// 对可观察包装对象（InpcValue / ComputedValue）建立自动绑定：
     /// 1. 读取当前值 → 设置控件初始属性
-    /// 2. 订阅 InpcValue 变更 → Dispatcher 调度更新 UI
+    /// 2. 订阅变更 → Dispatcher 调度更新 UI
+    /// 3. 若为双向绑定 (inpc_twoway) → 自动注册控件事件回写
     /// </summary>
-    private void BindInpcValue(Control control, string propertyName, Value inpcWrapper)
+    private void BindObservableValue(Control control, string propertyName, Value wrapper)
     {
-        var inpc = InpcFactory.ExtractInpc(inpcWrapper);
-        if (inpc == null) return;
+        var inpc = InpcFactory.ExtractInpc(wrapper);
+        var computed = InpcFactory.ExtractComputed(wrapper);
 
-        // 1. 设置初始值
-        SetControlProperty(control, propertyName, inpc.Get());
-
-        // 2. 订阅变更
-        inpc.OnChange(newValue =>
+        // 获取初始值 + 订阅变更的统一处理
+        Action<Value> updateAction = newValue =>
         {
-            // 在 UI 线程更新控件
-            void Update()
+            void Apply()
             {
                 SetControlProperty(control, propertyName, newValue);
             }
+            if (Dispatcher.UIThread.CheckAccess()) Apply();
+            else Dispatcher.UIThread.Post(Apply);
+        };
 
-            if (Dispatcher.UIThread.CheckAccess())
-                Update();
-            else
-                Dispatcher.UIThread.Post(Update);
-        });
+        if (inpc != null)
+        {
+            // InpcValue: 初始值 + 订阅
+            SetControlProperty(control, propertyName, inpc.Get());
+            inpc.OnChange(updateAction);
 
-        System.Diagnostics.Debug.WriteLine(
-            $"[InpcBinding] 已绑定 '{propertyName}' → {inpc.SubscriberCount} 订阅者");
+            // 双向绑定：自动注册控件→model 回写事件
+            if (InpcFactory.IsTwoWay(wrapper))
+            {
+                RegisterTwoWayWriteback(control, propertyName, inpc);
+            }
+        }
+        else if (computed != null)
+        {
+            // ComputedValue: 初始值 + 订阅（只读）
+            SetControlProperty(control, propertyName, computed.Get());
+            computed.OnChange(updateAction);
+        }
     }
+
+    /// <summary>
+    /// 双向绑定回写：注册控件事件 → 将 view 值写回 InpcValue
+    ///
+    /// 属性→事件映射:
+    ///   "text"    → TextBox.TextChanged  / CheckBox.IsCheckedChanged 不适用
+    ///   "checked" → CheckBox.IsCheckedChanged
+    ///   "selected"→ ComboBox/ListBox.SelectionChanged
+    /// </summary>
+    private static void RegisterTwoWayWriteback(Control control, string propertyName, InpcValue inpc)
+    {
+        switch (propertyName)
+        {
+            case "text":
+                if (control is TextBox tb)
+                {
+                    tb.TextChanged += (s, e) =>
+                    {
+                        inpc.Set(StringValue.Create(tb.Text ?? ""));
+                    };
+                }
+                break;
+
+            case "checked":
+                if (control is CheckBox cb)
+                {
+                    cb.IsCheckedChanged += (s, e) =>
+                    {
+                        inpc.Set(BoolValue.Create(cb.IsChecked ?? false));
+                    };
+                }
+                break;
+
+            case "selected":
+                // 索引选择 → 写回 NumberValue
+                if (control is ComboBox combo)
+                {
+                    combo.SelectionChanged += (s, e) =>
+                    {
+                        inpc.Set(NumberValueFactory.Create(combo.SelectedIndex));
+                    };
+                }
+                else if (control is ListBox list)
+                {
+                    list.SelectionChanged += (s, e) =>
+                    {
+                        inpc.Set(NumberValueFactory.Create(list.SelectedIndex));
+                    };
+                }
+                break;
+        }
+    }
+
+    // 保留旧方法名兼容（ControlBuilder 引用）
+    private void BindInpcValue(Control control, string propertyName, Value wrapper)
+        => BindObservableValue(control, propertyName, wrapper);
 
     /// <summary>
     /// 设置单个控件属性
@@ -485,6 +551,11 @@ public class PropertyBinder
             if (hex.StartsWith("#"))
             {
                 hex = hex[1..];
+
+                // 3 字符简写 → 6 字符: #ABC → #AABBCC
+                if (hex.Length == 3)
+                    hex = $"{hex[0]}{hex[0]}{hex[1]}{hex[1]}{hex[2]}{hex[2]}";
+
                 if (hex.Length == 6)
                     return Avalonia.Media.Color.Parse("#" + hex);
                 if (hex.Length == 8)

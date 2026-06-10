@@ -17,8 +17,12 @@ public static class AvaloniaModule
     {
         var properties = new Dictionary<string, Value>
         {
-            ["app"]  = CreateAppObject(adapter),
-            ["inpc"] = InpcFactory.CreateInpcFunction(),
+            ["app"]      = CreateAppObject(adapter),
+            ["inpc"]     = InpcFactory.CreateInpcFunction(),
+            ["computed"] = InpcFactory.CreateComputedFunction(),
+            ["vif"]      = StructureFactory.CreateVifFunction(),
+            ["vfor"]     = StructureFactory.CreateVforFunction(),
+            ["component"] = StructureFactory.CreateComponentFunction(),
         };
 
         return new ObjectValue(properties);

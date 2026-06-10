@@ -1,0 +1,148 @@
+// computed() + 双向绑定示例
+// 演示: computed 计算属性自动依赖追踪、inpc("twoway") 双向绑定
+import { app, inpc, computed, vif, vfor, component } from "avalonia"
+import { window, stackpanel, button, label, textbox, checkbox } from "avalonia.controls"
+
+// ================================================================
+// 示例 1: computed — 计算属性自动依赖追踪
+// ================================================================
+var firstName = inpc("张")
+var lastName = inpc("三")
+
+// fullName 自动依赖 firstName + lastName，任一变更自动重算
+var fullName = computed(() => firstName.get() + lastName.get())
+
+// 姓名统计（嵌套 computed：依赖另一个 computed）
+var nameInfo = computed(() => "姓名: " + fullName.get())
+
+// ================================================================
+// 示例 2: twoway 双向绑定 — inpc ↔ TextBox
+// "twoway" 标记后自动完成 model↔view 同步
+// ================================================================
+var email = inpc("test@example.com", "twoway")
+var age = inpc(25)
+
+// ================================================================
+// 示例 3: computed 数组 — 列表统计
+// ================================================================
+var items = inpc(["苹果", "香蕉", "橙子"])
+
+var itemCount = computed(() => {
+    let arr = items.get()
+    return "共 " + arr.length + " 项"
+})
+
+var firstItem = computed(() => {
+    let arr = items.get()
+    if (arr.length > 0) {
+        return "首项: " + arr.first()
+    }
+    return "列表为空"
+})
+
+// ================================================================
+// 示例 4: CheckBox twoway 双向绑定
+// ================================================================
+var agreeTerms = inpc(false, "twoway")
+
+var agreementLabel = computed(() => {
+    if (agreeTerms.get()) {
+        return "已同意服务条款"
+    }
+    return "请同意服务条款"
+})
+
+// vif 条件渲染：未同意时显示红色警告
+var notAgreed = computed(() => {
+    if (agreeTerms.get()) {
+        return false
+    }
+    return true
+})
+
+// ================================================================
+// 示例 5: component 组件复用
+// 定义 FormField 组件 — 标签 + 输入框
+// ================================================================
+let FormField = component((props) => {
+    return stackpanel({
+        "orientation" = "horizontal",
+        "spacing" = 10,
+        "children" = [
+            label({"text" = props.label, "fontSize" = 13}),
+            textbox({"text" = props.value, "width" = props.width,
+                "placeholder" = props.placeholder,
+                "onChange" = (e) => {
+                    props.value.set(e.value)
+                }})
+        ]
+    })
+})
+
+// ================================================================
+// UI 布局
+// ================================================================
+
+// 数组操作按钮行
+let itemButtons = stackpanel({
+    "orientation" = "horizontal",
+    "spacing" = 10,
+    "children" = [
+        button({"text" = "添加项", "onClick" = () => {
+            let arr = items.get()
+            arr.add("新项 " + (arr.length + 1))
+            items.set(arr)
+        }}),
+        button({"text" = "删除末项", "onClick" = () => {
+            let arr = items.get()
+            if (arr.length > 0) {
+                arr.removeAt(arr.length - 1)
+                items.set(arr)
+            }
+        }})
+    ]
+})
+
+// 主窗口
+return window({
+    "title" = "Computed + 双向绑定",
+    "width" = 520,
+    "height" = 620,
+    "content" = stackpanel({
+        "orientation" = "vertical",
+        "spacing" = 10,
+        "padding" = 20,
+        "children" = [
+            label({"text" = "Computed + 双向绑定", "fontSize" = 20}),
+            label({"text" = "=== computed + component ===", "fontSize" = 12, "color" = "#555"}),
+            // 使用 FormField 组件替代手动拼写的 nameRow
+            FormField({"label" = "姓:", "value" = firstName, "width" = 100,
+                "placeholder" = "输入姓"}),
+            FormField({"label" = "名:", "value" = lastName, "width" = 100,
+                "placeholder" = "输入名"}),
+            label({"text" = fullName, "fontSize" = 24, "color" = "#1976D2"}),
+            label({"text" = nameInfo, "fontSize" = 12, "color" = "#888"}),
+            label({"text" = "=== twoway 双向绑定 ===", "fontSize" = 12, "color" = "#555"}),
+            label({"text" = "邮箱 (twoway):"}),
+            textbox({"text" = email, "placeholder" = "输入邮箱...", "width" = 280}),
+            label({"text" = computed(() => "当前: " + email.get()),
+                "fontSize" = 12, "color" = "#0066cc"}),
+            label({"text" = "=== computed 数组 ===", "fontSize" = 12, "color" = "#555"}),
+            label({"text" = itemCount, "fontSize" = 13}),
+            label({"text" = firstItem, "fontSize" = 13, "color" = "#333"}),
+            itemButtons,
+            // v-for 列表渲染：为每个数组元素生成一个 label
+            label({"text" = "=== vfor 列表渲染 ===", "fontSize" = 12, "color" = "#555"}),
+            vfor(items, (item, index) => {
+                return label({"text" = (index + 1) + ". " + item,
+                    "fontSize" = 12, "color" = "#333"})
+            }),
+            label({"text" = "=== CheckBox twoway + vif ===", "fontSize" = 12, "color" = "#555"}),
+            checkbox({"text" = "我同意服务条款", "checked" = agreeTerms}),
+            label({"text" = agreementLabel, "fontSize" = 14, "color" = "#1976D2"}),
+            // v-if 条件渲染：未同意时显示警告
+            vif(notAgreed, label({"text" = "⚠ 请先勾选同意服务条款",
+                "fontSize" = 13, "color" = "#cc0000"}))
+        ]
+    })
+})

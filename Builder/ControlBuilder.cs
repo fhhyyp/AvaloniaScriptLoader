@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Threading;
 using ScriptLang.Runtime;
+using AvaloniaScriptLoader.Factory;
 using AvaloniaScriptLoader.Model;
 using AvaloniaScriptLoader.Wrapper;
 
@@ -8,7 +9,7 @@ namespace AvaloniaScriptLoader.Builder;
 
 /// <summary>
 /// 控件构建器 — 将 ObjectValue 描述符树递归转换为 Avalonia 控件树
-/// 必须在 UI 线程调用
+/// 必须在 UI 线程调用。支持 vif 条件渲染。
 /// </summary>
 public class ControlBuilder
 {
@@ -20,11 +21,6 @@ public class ControlBuilder
         _adapter = adapter ?? throw new ArgumentNullException(nameof(adapter));
     }
 
-    /// <summary>
-    /// 递归构建控件树（必须在 UI 线程调用）
-    /// </summary>
-    /// <param name="descriptor">根控件描述符</param>
-    /// <returns>根 Avalonia 控件</returns>
     public Control Build(ObjectValue descriptor)
     {
         if (!Dispatcher.UIThread.CheckAccess())
@@ -33,16 +29,11 @@ public class ControlBuilder
         return BuildInternal(descriptor);
     }
 
-    /// <summary>
-    /// 从描述符构建控件树，返回 Window（用于 demo 场景）
-    /// </summary>
     public Window? BuildWindow(ObjectValue descriptor)
     {
         var control = Build(descriptor);
-        if (control is Window window)
-            return window;
+        if (control is Window window) return window;
 
-        // 如果脚本返回的不是 Window，包装到新 Window 中
         var wrapperWindow = new Window
         {
             Title = "Avalonia Script",
@@ -54,12 +45,22 @@ public class ControlBuilder
     }
 
     // ========================================================================
-    // 递归构建
+    // 递归构建（入口：处理结构化指令）
     // ========================================================================
 
     private Control BuildInternal(ObjectValue descriptor)
     {
         var type = descriptor.Properties[ControlMeta.TypeKey].AsString();
+
+        // === v-if 条件渲染 ===
+        if (type == "vif")
+            return BuildVif(descriptor);
+
+        // === v-for 列表渲染 ===
+        if (type == "vfor")
+            return BuildVfor(descriptor);
+
+        // === 标准控件 ===
         var control = CreateNativeControl(type);
 
         // 1. 应用初始属性
@@ -314,5 +315,127 @@ public class ControlBuilder
     {
         System.Diagnostics.Debug.WriteLine(
             $"[Script Event] 事件 '{eventName}' 处理器异常: {ex.Message}");
+    }
+
+    // ========================================================================
+    // v-for 列表渲染
+    // ========================================================================
+
+    /// <summary>
+    /// 构建 vfor 列表渲染。
+    /// 根据数组的每个元素调用模板函数生成子控件，数组变更时全量重建。
+    /// </summary>
+    private Control BuildVfor(ObjectValue descriptor)
+    {
+        var arrayWrapper = descriptor.Properties["__array"];
+        var templateValue = descriptor.Properties["__template"];
+        var template = templateValue as ICallable;
+
+        // 获取数组 InpcValue
+        var inpc = InpcFactory.ExtractInpc(arrayWrapper);
+        if (inpc == null || template == null)
+            return new Panel(); // 无效配置，返回空占位
+
+        var placeholder = new StackPanel(); // 用 StackPanel 容纳列表项
+
+        // 重建所有子控件
+        void RebuildChildren()
+        {
+            var arr = inpc.Get();
+            if (arr is not ArrayValue av) return;
+
+            Dispatcher.UIThread.Post(() =>
+            {
+                placeholder.Children.Clear();
+                var engine = _adapter.Engine!;
+
+                for (int i = 0; i < av.Elements.Count; i++)
+                {
+                    var item = av.Elements[i];
+                    var index = NumberValueFactory.Create(i);
+
+                    try
+                    {
+                        // 调用模板函数 (item, index) => element
+                        var task = template.CallAsync(engine, [item, index]);
+                        var result = task.GetAwaiter().GetResult();
+
+                        if (result is ObjectValue childDesc)
+                        {
+                            var child = BuildInternal(childDesc);
+                            placeholder.Children.Add(child);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine(
+                            $"[vfor] 模板调用失败 index={i}: {ex.Message}");
+                    }
+                }
+            });
+        }
+
+        // 初始构建
+        RebuildChildren();
+
+        // 订阅数组变更 → 全量重建
+        inpc.OnChange(_ => RebuildChildren());
+
+        return placeholder;
+    }
+
+    // ========================================================================
+    // v-if 条件渲染
+    // ========================================================================
+
+    /// <summary>
+    /// 构建 vif 条件渲染占位符。
+    /// 创建一个空的 Panel 作为占位容器，根据 condition 的值动态挂载/卸载子控件。
+    /// </summary>
+    private Control BuildVif(ObjectValue descriptor)
+    {
+        var conditionWrapper = descriptor.Properties["__condition"];
+        var elementDesc = descriptor.Properties["__element"] as ObjectValue;
+
+        // 创建占位容器（空 Panel，不占用可见空间）
+        var placeholder = new Panel();
+
+        // 获取可观察对象
+        var inpc = InpcFactory.ExtractInpc(conditionWrapper);
+        var computed = InpcFactory.ExtractComputed(conditionWrapper);
+
+        // 获取当前条件值
+        bool GetCondition() =>
+            inpc?.Get().AsBool()
+            ?? computed?.Get().AsBool()
+            ?? false;
+
+        // 更新子控件（挂载/卸载）
+        void UpdateChild()
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                placeholder.Children.Clear();
+                if (GetCondition() && elementDesc != null)
+                {
+                    var child = BuildInternal(elementDesc);
+                    placeholder.Children.Add(child);
+                }
+            });
+        }
+
+        // 初始状态
+        if (GetCondition() && elementDesc != null)
+        {
+            placeholder.Children.Add(BuildInternal(elementDesc));
+        }
+
+        // 订阅变更
+        if (inpc != null)
+            inpc.OnChange(_ => UpdateChild());
+        else if (computed != null)
+            computed.OnChange(_ => UpdateChild());
+
+        return placeholder;
     }
 }

@@ -76,7 +76,7 @@ public partial class MainWindow : Window
         var samplesDir = Path.Combine(baseDir, "Samples");
 
         // 优先 Counter.script
-        var counterPath = Path.Combine(samplesDir, "TodoList.script");
+        var counterPath = Path.Combine(samplesDir, "ComputedBinding.script");
         //var counterPath = Path.Combine(samplesDir, "Counter.script");
         if (File.Exists(counterPath))
             return counterPath;
