@@ -105,6 +105,50 @@ public static class InpcFactory
             descriptor["value"] = newValue;
         });
 
+        // === 数组代理方法（get→mutate→set→notify 一步完成）===
+
+        // push(item) → 添加元素 + 通知
+        descriptor["push"] = new FunctionValue("push", args =>
+        {
+            var val = inpcInstance.Get();
+            if (val is ArrayValue av)
+            {
+                av.Add(args.FirstOrDefault() ?? Value.Null);
+                inpcInstance.Set(av);
+                descriptor["value"] = av;
+            }
+        });
+
+        // pop() → 移除并返回最后一个元素 + 通知
+        descriptor["pop"] = new FunctionValue("pop", () =>
+        {
+            var val = inpcInstance.Get();
+            if (val is ArrayValue av && av.Elements.Count > 0)
+            {
+                var popped = av.Pop();
+                inpcInstance.Set(av);
+                descriptor["value"] = av;
+                return popped;
+            }
+            return Value.Null;
+        });
+
+        // removeAt(index) → 移除指定索引元素 + 通知
+        descriptor["removeAt"] = new FunctionValue("removeAt", args =>
+        {
+            var val = inpcInstance.Get();
+            if (val is ArrayValue av && args.FirstOrDefault() is Value idxVal)
+            {
+                int idx = idxVal.IsNumber_Int ? idxVal.As<int>() : -1;
+                if (idx >= 0 && idx < av.Elements.Count)
+                {
+                    av.RemoveAt(idx);
+                    inpcInstance.Set(av);
+                    descriptor["value"] = av;
+                }
+            }
+        });
+
         return new ObjectValue(descriptor);
     }
 
