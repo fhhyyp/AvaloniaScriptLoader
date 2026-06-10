@@ -82,6 +82,10 @@ public static class ControlFactory
         new("tabitem", args => BuildDescriptor(ControlMeta.Types.TabItem, args,
             ["header", "content"]));
 
+    public static FunctionValue CreateDataGridFactory() =>
+        new("datagrid", args => BuildDescriptor(ControlMeta.Types.DataGrid, args,
+            ["items", "columns"]));
+
     // ============================================================================
     // 核心构建逻辑
     // ============================================================================
@@ -113,14 +117,22 @@ public static class ControlFactory
             }
         }
 
+        // 复制 class 属性（样式系统）
+        if (optProps.TryGetValue("class", out var classVal))
+            descriptor["class"] = classVal;
+
         // 复制通用属性（所有控件都支持）
-        foreach (var commonProp in new[] { "width", "height", "margin", "padding", "visible", "enabled", "name", "row", "col", "rowSpan", "colSpan" })
+        foreach (var commonProp in new[] { "width", "height", "margin", "padding", "visible", "enabled", "name",
+            "row", "col", "rowSpan", "colSpan", "onKeyDown" })
         {
             if (optProps.TryGetValue(commonProp, out var value))
             {
                 descriptor[commonProp] = value;
             }
         }
+
+        // 展开 class 样式（在 setter 注入前，避免样式属性被 setter 覆盖）
+        StyleFactory.ExpandClassProperty(descriptor);
 
         // 先创建 ObjectValue，再注入 setter（使 setter 能捕获此 ObjectValue 引用）
         var objValue = new ObjectValue(descriptor);

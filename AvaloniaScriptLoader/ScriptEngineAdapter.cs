@@ -108,6 +108,9 @@ public class ScriptEngineAdapter : IDisposable
 
             sw.Stop();
 
+            // 保存全局槽位值快照（防止后续模板 VM 的 GetValues() 因 Count 变化而清零）
+            //PreserveGlobalSlotValues();
+
             if (result is ObjectValue obj)
                 return ScriptResult.Ok(obj, sw.ElapsedMilliseconds);
 
@@ -164,6 +167,33 @@ public class ScriptEngineAdapter : IDisposable
             AvaloniaModule.CreateExports(this));
         _engine.ImportResolver.RegisterBuiltinModule("avalonia.controls",
             ControlsModule.CreateExports());
+    }
+
+    /// <summary>
+    /// 保存全局槽位值快照，防止后续 VM 的 GetValues() 因 Count 变化重置所有值。
+    /// 问题：模板 Lambda 编译时注册了新全局名 → Count 增大 →
+    /// 后续 VM 的 GetValues() 发现 _values.Length != Count → InitializeValues() 全清空。
+    /// 修复：强制 _values 匹配 Count 并保留已有值。
+    /// </summary>
+    private static void PreserveGlobalSlotValues()
+    {
+        var currentValues = ScriptLang.Runtime.ByteCode.GlobalSlotRegistry.GetValues();
+        int currentLength = currentValues.Length;
+        int targetCount = ScriptLang.Runtime.ByteCode.GlobalSlotRegistry.Count;
+
+        if (currentLength < targetCount)
+        {
+            var valuesField = typeof(ScriptLang.Runtime.ByteCode.GlobalSlotRegistry)
+                .GetField("_values", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+            if (valuesField != null)
+            {
+                var newValues = new ScriptLang.Runtime.Value[targetCount];
+                Array.Copy(currentValues, newValues, currentLength);
+                for (int i = currentLength; i < targetCount; i++)
+                    newValues[i] = ScriptLang.Runtime.Value.Null;
+                valuesField.SetValue(null, newValues);
+            }
+        }
     }
 
     // ========================================================================

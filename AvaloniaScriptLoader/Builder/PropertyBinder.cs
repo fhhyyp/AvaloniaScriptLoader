@@ -237,6 +237,8 @@ public class PropertyBinder
             ApplyTabControlProperty(tabControl, name, value);
         else if (control is TabItem tabItem)
             ApplyTabItemProperty(tabItem, name, value);
+        else if (control.GetType().Name == "DataGrid")
+            ApplyDataGridByReflection(control, name, value);
         else if (control is TextBlock textBlock)
             ApplyLabelProperty(textBlock, name, value);
         else
@@ -341,6 +343,60 @@ public class PropertyBinder
         {
             case "header":
                 ti.Header = value.AsString();
+                break;
+        }
+    }
+
+    // ========================================================================
+    // DataGrid（反射实现，无 Avalonia.Controls.DataGrid 包依赖）
+    // ========================================================================
+    private static void ApplyDataGridByReflection(Control control, string name, Value value)
+    {
+        var type = control.GetType();
+        switch (name)
+        {
+            case "items":
+                if (value is ArrayValue av)
+                {
+                    var itemsProp = type.GetProperty("ItemsSource");
+                    if (itemsProp != null)
+                    {
+                        var items = av.Elements
+                            .Select(v => (object)(v is ObjectValue o ? o.Properties : v.ToString()!))
+                            .ToList();
+                        itemsProp.SetValue(control, items);
+                    }
+                }
+                break;
+            case "columns":
+                if (value is ArrayValue cols)
+                {
+                    var columnsProp = type.GetProperty("Columns");
+                    if (columnsProp?.GetValue(control) is System.Collections.IList columnList)
+                    {
+                        var dgtcType = Type.GetType("Avalonia.Controls.DataGridTextColumn, Avalonia.Controls.DataGrid");
+                        foreach (var colVal in cols.Elements)
+                        {
+                            if (colVal is ObjectValue colObj && dgtcType != null)
+                            {
+                                var header = colObj.Properties.TryGetValue("header", out var h)
+                                    ? h.AsString() : "";
+                                var binding = colObj.Properties.TryGetValue("binding", out var b)
+                                    ? b.AsString() : header;
+
+                                var col = Activator.CreateInstance(dgtcType)!;
+                                dgtcType.GetProperty("Header")?.SetValue(col, header);
+                                var bType = Type.GetType("Avalonia.Data.Binding, Avalonia.Base");
+                                if (bType != null)
+                                {
+                                    var bInst = Activator.CreateInstance(bType, binding);
+                                    dgtcType.GetProperty("Binding")?.SetValue(col, bInst);
+                                }
+                                columnList.Add(col);
+                            }
+                        }
+                    }
+                }
                 break;
         }
     }

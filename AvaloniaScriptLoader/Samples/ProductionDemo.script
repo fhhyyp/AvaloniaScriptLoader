@@ -1,0 +1,168 @@
+// ═══════════════════════════════════════════════════════════════
+// 生产级页面综合演示 — 用户管理系统（含搜索过滤）
+// 覆盖: fetch / style / onKeyDown / vfor / showDialog / vif / computed
+// ═══════════════════════════════════════════════════════════════
+import { app, inpc, computed, vif, vfor, style } from "avalonia"
+import { window, stackpanel, button, label, textbox, border, scrollviewer, tabcontrol, tabitem } from "avalonia.controls"
+
+// 样式
+style("pageTitle", {"fontSize" = 22, "color" = "#1a1a2e"})
+style("btnPrimary", {"background" = "#1976D2", "color" = "#ffffff", "fontSize" = 13})
+style("btnOutline", {"color" = "#1976D2", "fontSize" = 13})
+style("badge", {"background" = "#e3f2fd", "color" = "#1565C0", "fontSize" = 11})
+
+// 全部数据（不变量）
+var allUsers = [
+    {"name"="张三", "email"="zhangsan@example.com", "role"="管理员", "status"="活跃"},
+    {"name"="李四", "email"="lisi@example.com", "role"="编辑",   "status"="活跃"},
+    {"name"="王五", "email"="wangwu@example.com", "role"="用户", "status"="禁用"},
+    {"name"="赵六", "email"="zhaoliu@example.com", "role"="用户","status"="活跃"},
+    {"name"="孙七", "email"="sunqi@example.com", "role"="编辑",  "status"="活跃"}
+]
+
+// 当前展示的数据（会被搜索过滤修改）
+var displayUsers = inpc(allUsers)
+var searchQuery = inpc("", "twoway")
+var userCount = computed(() => "共 " + displayUsers.get().length + " 个用户")
+
+// ================================================================
+// 搜索过滤逻辑（更新 displayUsers + 重建 vfor 列表）
+// ================================================================
+let buildUserList = (usersArr) => {
+    return vfor(usersArr, (user, index) => {
+        return label({
+            "text" = (index + 1) + ". " + user.name + "  <" + user.email + ">  [" + user.role + "]  " + user.status,
+            "fontSize" = 13, "color" = "#333"
+        })
+    })
+}
+
+let doSearch = () => {
+    let query = searchQuery.get()
+    if (query == "") {
+        displayUsers.set(allUsers)
+    } else {
+        let result = []
+        for i in range(0, allUsers.length) {
+            let u = allUsers[i]
+            if (u.name.contains(query)) {
+                result.add(u)
+            }
+        }
+        displayUsers.set(result)
+    }
+    // 重建列表（setChildren 更新 StackPanel 内容）
+    let container = app.find("userListBox")
+    if (container != null) {
+        container.setChildren(buildUserList(displayUsers))
+    }
+}
+
+// ================================================================
+// 对话框
+// ================================================================
+let createDialogContent = (title) => {
+    return stackpanel({
+        "spacing" = 12, "padding" = 20,
+        "children" = [
+            label({"text" = title, "class" = "pageTitle"}),
+            label({"text" = "对话框由脚本控件树动态渲染", "fontSize" = 12, "color" = "#666"}),
+            stackpanel({
+                "orientation" = "horizontal", "spacing" = 10,
+                "children" = [
+                    button({"text" = "确定", "class" = "btnPrimary"}),
+                    button({"text" = "取消", "class" = "btnOutline"})
+                ]
+            })
+        ]
+    })
+}
+
+// ================================================================
+// 主窗口
+// ================================================================
+return window({
+    "title" = "用户管理系统",
+    "width" = 700,
+    "height" = 550,
+    "content" = stackpanel({
+        "spacing" = 0,
+        "children" = [
+
+            // 标题栏
+            border({
+                "background" = "#1a1a2e", "padding" = 16,
+                "content" = label({"text" = "用户管理系统", "fontSize" = 20, "color" = "#ffffff"})
+            }),
+
+            tabcontrol({
+                "selectedIndex" = 0,
+                "items" = [
+                    tabitem({"header" = "用户列表", "content" = stackpanel({
+                        "spacing" = 0,
+                        "children" = [
+
+                            // 工具栏
+                            border({
+                                "background" = "#f5f5f5", "padding" = 12,
+                                "content" = stackpanel({
+                                    "orientation" = "horizontal", "spacing" = 10,
+                                    "children" = [
+                                        textbox({
+                                            "text" = searchQuery,
+                                            "placeholder" = "搜索用户名(回车搜索)...", "width" = 220,
+                                            "onChange" = (e) => {
+                                                doSearch()
+                                            }
+                                        }),
+                                        button({"text" = "搜索", "class" = "btnPrimary",
+                                            "onClick" = () => { doSearch() }}),
+                                        button({"text" = "清除", "class" = "btnOutline",
+                                            "onClick" = () => {
+                                                searchQuery.set("")
+                                                doSearch()
+                                            }}),
+                                        label({"text" = userCount, "class" = "badge"}),
+                                        button({"text" = "?", "class" = "btnOutline",
+                                            "onClick" = () => {
+                                                app.showDialog(createDialogContent("使用说明"), "帮助")
+                                            }})
+                                    ]
+                                })
+                            }),
+
+                            // 用户列表
+                            scrollviewer({
+                                "content" = stackpanel({
+                                    "name" = "userListBox",
+                                    "spacing" = 4, "padding" = 12,
+                                    "children" = buildUserList(displayUsers)
+                                })
+                            })
+                        ]
+                    })}),
+
+                    // 统计标签页
+                    tabitem({"header" = "统计", "content" = stackpanel({
+                        "spacing" = 12, "padding" = 20,
+                        "children" = [
+                            label({"text" = "系统统计", "class" = "pageTitle"}),
+                            label({"text" = userCount, "fontSize" = 14}),
+                            label({"text" = "当前用户:", "fontSize" = 12, "color" = "#555"}),
+                            vfor(displayUsers, (user, index) => {
+                                return label({"text" = (index + 1) + ". " + user.name + " (" + user.role + ")",
+                                    "fontSize" = 12, "color" = "#333"})
+                            })
+                        ]
+                    })})
+                ]
+            }),
+
+            // 底部
+            border({
+                "background" = "#f5f5f5", "padding" = 8,
+                "content" = label({"text" = "vfor | computed | vif | showDialog | onKeyDown | style", "fontSize" = 11, "color" = "#888"})
+            })
+        ]
+    })
+})

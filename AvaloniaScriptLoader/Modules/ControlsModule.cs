@@ -31,6 +31,7 @@ public static class ControlsModule
             ["border"]       = ControlFactory.CreateBorderFactory(),
             ["tabcontrol"]   = ControlFactory.CreateTabControlFactory(),
             ["tabitem"]      = ControlFactory.CreateTabItemFactory(),
+            ["datagrid"]     = ControlFactory.CreateDataGridFactory(),
         };
 
         return new ObjectValue(properties);

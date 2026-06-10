@@ -26,6 +26,8 @@ public static class AvaloniaModule
             ["vif"]       = StructureFactory.CreateVifFunction(),
             ["vfor"]      = StructureFactory.CreateVforFunction(),
             ["component"] = StructureFactory.CreateComponentFunction(),
+            ["style"]     = StyleFactory.CreateStyleFunction(),
+            ["fetch"]     = HttpModule.CreateExports().Properties["fetch"],
         };
         return new ObjectValue(properties);
     }
@@ -68,6 +70,15 @@ public static class AvaloniaModule
                 return result != null ? StringValue.Create(result) : Value.Null;
             }),
 
+            // === showDialog(content, title?) — 自定义内容对话框 ===
+            ["showDialog"] = new FunctionValue("showDialog", args =>
+            {
+                var content = args.FirstOrDefault() as ObjectValue;
+                var title = args.Count > 1 ? args[1].AsString() : "对话框";
+                if (content == null) return;
+                ShowCustomDialog(title, content, adapter);
+            }),
+
             // === log(text) ===
             ["log"] = new FunctionValue("log", args =>
             {
@@ -91,6 +102,24 @@ public static class AvaloniaModule
                     adapter.FindControl(name)?.Control.Focus();
                 });
             }),
+        });
+    }
+
+    private static void ShowCustomDialog(string title, ObjectValue contentDesc, ScriptEngineAdapter adapter)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            var builder = new Builder.ControlBuilder(adapter);
+            var content = builder.Build(contentDesc);
+
+            var dialog = new Window
+            {
+                Title = title,
+                Width = 500, Height = 350,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Content = content,
+            };
+            dialog.ShowDialog(MainWindow);
         });
     }
 

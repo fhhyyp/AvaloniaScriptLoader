@@ -35,6 +35,7 @@ public static class ControlMeta
         public const string Border = "border";
         public const string TabControl = "tabcontrol";
         public const string TabItem = "tabitem";
+        public const string DataGrid = "datagrid";
     }
 
     /// <summary>控件属性名前缀（用于识别 setter 方法）</summary>

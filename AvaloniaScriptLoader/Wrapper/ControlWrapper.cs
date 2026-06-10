@@ -58,18 +58,39 @@ public class ControlWrapper : IDisposable
         }
     }
 
+    /// <summary>ControlBuilder 引用（用于 children 动态重建）</summary>
+    internal Builder.ControlBuilder? Builder { get; set; }
+
     /// <summary>
     /// 设置属性值（外部调用入口）
     /// </summary>
     public void SetProperty(string propertyName, Value value)
     {
-        // 更新描述符数据
         if (!string.IsNullOrEmpty(propertyName))
-        {
             _descriptor.Properties[propertyName] = value;
+
+        // children 特殊处理：清空并重建子控件
+        if (propertyName == "children" && value is ArrayValue av)
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (_control is Panel panel)
+                {
+                    panel.Children.Clear();
+                    var cb = Builder ?? new Builder.ControlBuilder(null!);
+                    foreach (var childDesc in av.Elements)
+                    {
+                        if (childDesc is ObjectValue childObj)
+                        {
+                            var child = cb.Build(childObj);
+                            panel.Children.Add(child);
+                        }
+                    }
+                }
+            });
+            return;
         }
 
-        // 在 UI 线程更新实际控件
         void UpdateControl()
         {
             var binder = new PropertyBinder();

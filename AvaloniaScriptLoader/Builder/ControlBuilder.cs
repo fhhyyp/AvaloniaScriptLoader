@@ -60,10 +60,6 @@ public class ControlBuilder
         if (type == "vif")
             return BuildVif(descriptor);
 
-        // === v-for 列表渲染 ===
-        if (type == "vfor")
-            return BuildVfor(descriptor);
-
         // === 标准控件 ===
         var control = CreateNativeControl(type);
 
@@ -75,6 +71,7 @@ public class ControlBuilder
 
         // 3. 创建并激活 ControlWrapper
         var wrapper = new ControlWrapper(control, descriptor);
+        wrapper.Builder = this;
         wrapper.Activate();
 
         // 4. 注册到控件注册表（用于 app.find）
@@ -104,6 +101,32 @@ public class ControlBuilder
                     var childControl = BuildInternal(childObj);
                     AddChild(control, childControl, childObj);
                 }
+                else if (childDesc is ArrayValue nestedArr)
+                {
+                    // vfor 返回的嵌套数组 — 递归展开
+                    foreach (var nestedDesc in nestedArr.Elements)
+                    {
+                        if (nestedDesc is ObjectValue nestedObj)
+                        {
+                            var nestedControl = BuildInternal(nestedObj);
+                            AddChild(control, nestedControl, nestedObj);
+                        }
+                    }
+                }
+            }
+        }
+
+        // 7. 递归处理 items（TabControl / ListBox 等集合型控件）
+        if (descriptor.Properties.TryGetValue("items", out var itemsValue)
+            && itemsValue is ArrayValue items)
+        {
+            foreach (var itemDesc in items.Elements)
+            {
+                if (itemDesc is ObjectValue itemObj)
+                {
+                    var itemControl = BuildInternal(itemObj);
+                    AddChild(control, itemControl, itemObj);
+                }
             }
         }
 
@@ -130,8 +153,21 @@ public class ControlBuilder
         ControlMeta.Types.Border       => new Border(),
         ControlMeta.Types.TabControl   => new TabControl(),
         ControlMeta.Types.TabItem      => new TabItem(),
+        ControlMeta.Types.DataGrid    => CreateDataGridReflection(),
         _ => throw new ArgumentException($"未知控件类型: '{type}'"),
     };
+
+    /// <summary>
+    /// 反射创建 DataGrid（避免硬依赖 Avalonia.Controls.DataGrid NuGet 包）
+    /// </summary>
+    private static Control CreateDataGridReflection()
+    {
+        var dgType = Type.GetType("Avalonia.Controls.DataGrid, Avalonia.Controls.DataGrid");
+        if (dgType != null)
+            return (Control)Activator.CreateInstance(dgType)!;
+        // 回退：如果未安装 DataGrid 包，返回 TextBlock 提示
+        return new TextBlock { Text = "[DataGrid: 请安装 Avalonia.Controls.DataGrid 包]" };
+    }
 
     // ========================================================================
     // 子控件添加
@@ -144,11 +180,19 @@ public class ControlBuilder
             case Window window:
                 window.Content = child;
                 break;
+            case TabItem tabItem:
+                tabItem.Content = child;
+                break;
             case ContentControl cc:
                 cc.Content = child;
                 break;
+            case Decorator decorator:
+                decorator.Child = child;
+                break;
             default:
-                // 尝试反射设置 Content 属性
+                // 反射回退：Child → Content
+                var childProp = parent.GetType().GetProperty("Child");
+                if (childProp != null) { childProp.SetValue(parent, child); return; }
                 var contentProp = parent.GetType().GetProperty("Content");
                 contentProp?.SetValue(parent, child);
                 break;
@@ -259,6 +303,22 @@ public class ControlBuilder
             }
         }
 
+        // onKeyDown → Control.KeyDown（事件参数: key, modifiers）
+        if (props.TryGetValue("onKeyDown", out var onKeyDown) && onKeyDown is ICallable keyFunc)
+        {
+            control.KeyDown += async (s, e) =>
+            {
+                try
+                {
+                    var kargs = Evt("keydown",
+                        ("key", StringValue.Create(e.Key.ToString())),
+                        ("modifiers", StringValue.Create(e.KeyModifiers.ToString())));
+                    await keyFunc.CallAsync(engine, [kargs]);
+                }
+                catch (Exception ex) { LogEventError("onKeyDown", ex); }
+            };
+        }
+
         // onSelect
         if (props.TryGetValue("onSelect", out var onSelect) && onSelect is ICallable selectFunc)
         {
@@ -323,15 +383,25 @@ public class ControlBuilder
         var templateValue = descriptor.Properties["__template"];
         var template = templateValue as ICallable;
 
+        // 支持 InpcValue 和 ComputedValue 作为数组源
         var inpc = InpcFactory.ExtractInpc(arrayWrapper);
-        if (inpc == null || template == null)
+        var computedArr = InpcFactory.ExtractComputed(arrayWrapper);
+
+        Func<Value> getArray = inpc != null ? () => inpc.Get()
+            : computedArr != null ? () => computedArr.Get()
+            : null;
+
+        Action<Action<Value>> subscribe = inpc != null ? cb => inpc.OnChange(cb)
+            : computedArr != null ? cb => computedArr.OnChange(cb)
+            : null;
+
+        if (getArray == null || subscribe == null || template == null)
             return new Panel();
 
         var engine = _adapter.Engine!;
         EnsureGlobalSlotsForTemplate(engine);
 
-        var placeholder = new StackPanel();
-        // 增量更新追踪: index → (control, itemHash)
+        var placeholder = new VirtualizingStackPanel();
         var rendered = new Dictionary<int, (Control control, int itemHash)>();
 
         Control RenderItem(int i, Value item)
@@ -353,7 +423,7 @@ public class ControlBuilder
 
         void FullRebuild()
         {
-            var arr = inpc.Get();
+            var arr = getArray();
             if (arr is not ArrayValue av) return;
             Dispatcher.UIThread.Post(() =>
             {
@@ -370,7 +440,7 @@ public class ControlBuilder
 
         void IncrementalUpdate()
         {
-            var arr = inpc.Get();
+            var arr = getArray();
             if (arr is not ArrayValue av) return;
             Dispatcher.UIThread.Post(() =>
             {
@@ -400,7 +470,7 @@ public class ControlBuilder
         }
 
         FullRebuild();
-        inpc.OnChange(_ => IncrementalUpdate());
+        subscribe(_ => IncrementalUpdate());
 
         return placeholder;
     }
@@ -410,33 +480,26 @@ public class ControlBuilder
     /// 模板运行在新 VM 中，需要全局槽位值可用。
     /// 注意：只 SetValue，不 Register — 槽位索引在编译时已固定，重新注册会改变索引。
     /// </summary>
+    /// <summary>
+    /// 确保 vfor 模板 Lambda 中的控件工厂在 GlobalSlotRegistry 有值。
+    /// 仅设置已存在槽位的值，不注册新槽位（Register 会扩容数组，清空所有已有值）。
+    /// </summary>
     private static void EnsureGlobalSlotsForTemplate(ScriptLang.ScriptEngine engine)
     {
         var controlsExports = Modules.ControlsModule.CreateExports();
-        var avaloniaExports = Modules.AvaloniaModule.CreateExports(null!);
 
-        // 更新 ImportResolver 的模块缓存（确保后续 import 能找到）
-        engine.ImportResolver.RegisterBuiltinModule("avalonia", avaloniaExports);
-        engine.ImportResolver.RegisterBuiltinModule("avalonia.controls", controlsExports);
-
-        // 仅设置值（不重新注册，保持编译时分配的槽位索引不变）
-        void SetIfExists(string name, Value value)
+        foreach (var kv in controlsExports.Properties)
         {
             try
             {
-                int slot = ScriptLang.Runtime.ByteCode.GlobalSlotRegistry.GetSlot(name);
-                ScriptLang.Runtime.ByteCode.GlobalSlotRegistry.SetValue(slot, value);
+                int slot = ScriptLang.Runtime.ByteCode.GlobalSlotRegistry.GetSlot(kv.Key);
+                ScriptLang.Runtime.ByteCode.GlobalSlotRegistry.SetValue(slot, kv.Value);
             }
             catch (KeyNotFoundException)
             {
-                // 编译时未分配此全局变量的槽位，忽略
+                // 槽位不存在说明模板 Lambda 不使用此变量（通过闭包捕获），跳过
             }
         }
-
-        foreach (var kv in controlsExports.Properties)
-            SetIfExists(kv.Key, kv.Value);
-        foreach (var kv in avaloniaExports.Properties)
-            SetIfExists(kv.Key, kv.Value);
     }
 
     // ========================================================================

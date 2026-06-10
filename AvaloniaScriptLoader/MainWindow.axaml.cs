@@ -98,11 +98,10 @@ public partial class MainWindow : Window
         var baseDir = AppContext.BaseDirectory;
         var samplesDir = Path.Combine(baseDir, "Samples");
 
-        // 优先 Counter.script
-        var counterPath = Path.Combine(samplesDir, "ComputedBinding.script");
-        //var counterPath = Path.Combine(samplesDir, "Counter.script");
-        if (File.Exists(counterPath))
-            return counterPath;
+        // 默认: ProductionDemo.script
+        var prodPath = Path.Combine(samplesDir, "ProductionDemo.script");
+        if (File.Exists(prodPath))
+            return prodPath;
 
         // 回退 HelloWorld.script
         var helloPath = Path.Combine(samplesDir, "HelloWorld.script");
