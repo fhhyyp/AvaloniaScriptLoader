@@ -1,0 +1,390 @@
+// ═══════════════════════════════════════════════════════════
+//  AvaloniaScriptLoader — 控件画廊 (Control Gallery)
+//  展示全部 19 种控件 + 响应式特性 + 实际场景示例
+// ═══════════════════════════════════════════════════════════
+import { app, inpc, computed, vif } from "avalonia"
+import { window, grid, stackpanel, button, label, textbox, checkbox, combobox, listbox, slider, progressbar, datepicker, border, image, scrollviewer, tabcontrol, tabitem, dialog } from "avalonia.controls"
+import { _loaded } from "styles.script"
+
+var currentPage = inpc("label")
+
+let navItem = (id, text) => {
+    var cls = "sidebarBtn"
+    if (id == currentPage.get()) { cls = "sidebarActive" }
+    return button({"text" = text, "class" = cls,
+        "onClick" = () => { currentPage.set(id) }})
+}
+
+let demoSection = (title, desc, demoContent) => {
+    return stackpanel({"spacing" = 10, "children" = [
+        label({"text" = title, "class" = "demoTitle"}),
+        label({"text" = desc, "class" = "demoDesc"}),
+        border({"class" = "demoCard", "content" = demoContent})
+    ]})
+}
+
+// State
+var nameInput    = inpc("", "twoway")
+var emailInput   = inpc("", "twoway")
+var agreeTerms   = inpc(false, "twoway")
+var volumeVal    = inpc(70, "twoway")
+var brightness   = inpc(85, "twoway")
+var uploadProgress = inpc(42)
+var birthDate    = inpc("2000-01-01")
+var focusState   = inpc("点击下方输入框")
+var blurState    = inpc("—")
+var showHelp     = inpc(false)
+
+// ═══ Label ═══
+let demoLabel = () => demoSection("Label 文本标签",
+    "静态文本、computed 动态文本、样式属性",
+    stackpanel({"spacing" = 6, "children" = [
+        label({"text" = "静态标签 — 固定文字", "fontSize" = 13, "color" = "#1e293b"}),
+        label({"text" = "大号标题 — 可用于页面标题", "fontSize" = 20, "color" = "#6366f1"}),
+        label({"text" = "灰色辅助文字 — fontSize=11, color=#94a3b8", "fontSize" = 11, "color" = "#94a3b8"}),
+        label({"text" = computed(() => "动态标签 — 音量: " + int(volumeVal.get()) + "%"),
+            "fontSize" = 13, "color" = "#1e293b"})
+    ]})
+)
+
+// ═══ Button ═══
+let demoButton = () => demoSection("Button 按钮",
+    "操作控件。class 样式绑定、onClick 事件、enabled 禁用态",
+    stackpanel({"spacing" = 8, "children" = [
+        stackpanel({"orientation" = "horizontal", "spacing" = 8, "children" = [
+            button({"text" = "保存", "class" = "btnPrimary"}),
+            button({"text" = "取消", "class" = "btnGhost"}),
+            button({"text" = "禁用", "class" = "btnGhost", "enabled" = false})
+        ]}),
+        label({"text" = "↑ 主要 / 次要 / 禁用", "fontSize" = 11, "color" = "#94a3b8"}),
+        stackpanel({"orientation" = "horizontal", "spacing" = 6, "children" = [
+            button({"text" = "👍"}),
+            button({"text" = "❤️"}),
+            button({"text" = "😊"})
+        ]}),
+        label({"text" = "↑ 按钮可嵌入 emoji", "fontSize" = 11, "color" = "#94a3b8"})
+    ]})
+)
+
+// ═══ TextBox ═══
+let demoTextBox = () => demoSection("TextBox 输入框",
+    "文本输入 + twoway 双向绑定 + placeholder + onFocus/onBlur",
+    stackpanel({"spacing" = 10, "children" = [
+        label({"text" = "注册表单:", "fontSize" = 13, "color" = "#1e293b"}),
+        textbox({"text" = nameInput, "placeholder" = "请输入用户名", "width" = 280}),
+        textbox({"text" = emailInput, "placeholder" = "请输入邮箱", "width" = 280}),
+        label({"text" = computed(() => {
+            var n = nameInput.get()
+            var e = emailInput.get()
+            if (n == "" && e == "") then { return "请填写用户名和邮箱" }
+            if (n == "")  then { return "请填写用户名" }
+            if (e == "") then { return "请填写邮箱" }
+            return "✓ " + n + " <" + e + ">"
+        }), "fontSize" = 12, "color" = "#334155"}),
+        textbox({"placeholder" = "点击此处测试 onFocus/onBlur", "width" = 280,
+            "onFocus" = (e) => { focusState.set("✓ 已获得焦点") },
+            "onBlur"  = (e) => { blurState.set("✓ 已失去焦点") }}),
+        label({"text" = focusState, "fontSize" = 11, "color" = "#166534"}),
+        label({"text" = blurState, "fontSize" = 11, "color" = "#64748b"})
+    ]})
+)
+
+// ═══ CheckBox ═══
+let demoCheckBox = () => demoSection("CheckBox 复选框",
+    "布尔选择 + twoway + onChange。常见场景: 同意协议",
+    stackpanel({"spacing" = 10, "children" = [
+        checkbox({"text" = "我已阅读并同意《服务条款》", "checked" = agreeTerms}),
+        label({"text" = computed(() => {
+            if (agreeTerms.get()) { return "✅ 已同意 — 可以继续注册" }
+            return "⚠ 请先同意服务条款"
+        }), "fontSize" = 12, "color" = computed(() => {
+            if (agreeTerms.get()) { return "#166534" }
+            return "#dc2626"
+        })}),
+        button({"text" = "继续注册", "class" = "btnPrimary",
+            "enabled" = computed(() => agreeTerms.get())})
+    ]})
+)
+
+// ═══ ComboBox ═══
+let demoComboBox = () => demoSection("ComboBox 下拉框",
+    "选项列表选择。适用于角色选择、分类筛选",
+    stackpanel({"spacing" = 8, "children" = [
+        label({"text" = "选择角色:", "fontSize" = 12}),
+        combobox({"items" = ["管理员", "编辑", "作者", "读者", "访客"], "width" = 200, "selected" = 1}),
+        label({"text" = "不同角色对应不同后台菜单权限", "fontSize" = 11, "color" = "#94a3b8"})
+    ]})
+)
+
+// ═══ ListBox ═══
+let demoListBox = () => demoSection("ListBox 列表框",
+    "多行列表。适用于日志、消息列表",
+    listbox({"items" = [
+        "[10:32] admin 登录系统",
+        "[10:45] editor 编辑文章 #42",
+        "[11:01] 自动备份完成",
+        "[11:15] viewer 导出报表",
+        "[11:30] 计划任务执行完毕"
+    ], "height" = 130, "width" = 400})
+)
+
+// ═══ Slider ═══
+let demoSlider = () => demoSection("Slider 滑块",
+    "连续数值输入 + twoway。适用于音量、亮度",
+    stackpanel({"spacing" = 12, "children" = [
+        label({"text" = "🔊 音量", "fontSize" = 12}),
+        slider({"value" = volumeVal, "minimum" = 0, "maximum" = 100, "width" = 300}),
+        label({"text" = computed(() => int(volumeVal.get()) + "%"), "fontSize" = 14, "color" = "#6366f1"}),
+        label({"text" = "☀ 亮度", "fontSize" = 12}),
+        slider({"value" = brightness, "minimum" = 0, "maximum" = 100, "width" = 300}),
+        label({"text" = computed(() => int(brightness.get()) + "%"), "fontSize" = 14, "color" = "#6366f1"})
+    ]})
+)
+
+// ═══ ProgressBar ═══
+let demoProgressBar = () => demoSection("ProgressBar 进度条",
+    "任务进度展示。文件上传、数据导出",
+    stackpanel({"spacing" = 10, "children" = [
+        label({"text" = "📁 上传进度", "fontSize" = 12}),
+        progressbar({"value" = uploadProgress, "width" = 350}),
+        label({"text" = computed(() => int(uploadProgress.get()) + "%"), "fontSize" = 13, "color" = "#6366f1"}),
+        label({"text" = computed(() => {
+            var p = uploadProgress.get()
+            if (p < 30) { return "状态: 准备中..." }
+            if (p < 70) { return "状态: 传输中..." }
+            if (p < 100) { return "状态: 即将完成" }
+            return "状态: 完成 ✓"
+        }), "fontSize" = 11, "color" = "#94a3b8"}),
+        stackpanel({"orientation" = "horizontal", "spacing" = 8, "children" = [
+            button({"text" = "+10%", "class" = "btnGhost",
+                "onClick" = () => { var v = uploadProgress.get() + 10 if (v > 100) { v = 0 } uploadProgress.set(v) }}),
+            button({"text" = "重置", "class" = "btnGhost",
+                "onClick" = () => { uploadProgress.set(0) }})
+        ]})
+    ]})
+)
+
+// ═══ DatePicker ═══
+let demoDatePicker = () => demoSection("DatePicker 日期选择",
+    "原生日期选择器。表单中的日期输入",
+    stackpanel({"spacing" = 8, "children" = [
+        label({"text" = "出生日期:", "fontSize" = 12}),
+        datepicker({"selectedDate" = birthDate, "width" = 220}),
+        label({"text" = computed(() => "已选: " + birthDate.get()), "fontSize" = 12, "color" = "#334155"})
+    ]})
+)
+
+// ═══ Border ═══
+let demoBorder = () => demoSection("Border 边框容器",
+    "单子控件容器。背景色、边框、圆角。用于卡片",
+    stackpanel({"orientation" = "horizontal", "spacing" = 10, "children" = [
+        border({"background" = "#eef2ff", "cornerRadius" = 8, "padding" = 16,
+            "content" = stackpanel({"spacing" = 2, "children" = [
+                label({"text" = "📊 总收入", "fontSize" = 11, "color" = "#64748b"}),
+                label({"text" = "¥12,450", "fontSize" = 18, "color" = "#4338ca"}),
+                label({"text" = "↑ 12%", "fontSize" = 11, "color" = "#166534"})
+            ]})}),
+        border({"background" = "#fef2f2", "cornerRadius" = 8, "padding" = 16,
+            "content" = stackpanel({"spacing" = 2, "children" = [
+                label({"text" = "👥 新用户", "fontSize" = 11, "color" = "#64748b"}),
+                label({"text" = "1,280", "fontSize" = 18, "color" = "#991b1b"}),
+                label({"text" = "↓ 3%", "fontSize" = 11, "color" = "#dc2626"})
+            ]})})
+    ]})
+)
+
+// ═══ ScrollViewer ═══
+let demoScrollViewer = () => demoSection("ScrollViewer 滚动视图",
+    "内容溢出时自动滚动。需配合 Grid * 行高",
+    scrollviewer({"height" = 120, "content" = stackpanel({"spacing" = 2, "children" = [
+        label({"text" = "🐱 第 1 项"}), label({"text" = "🐶 第 2 项"}), label({"text" = "🐭 第 3 项"}),
+        label({"text" = "🐹 第 4 项"}), label({"text" = "🐰 第 5 项"}), label({"text" = "🦊 第 6 项"}),
+        label({"text" = "🐻 第 7 项"}), label({"text" = "🐼 第 8 项"}), label({"text" = "🐨 第 9 项"}),
+        label({"text" = "🐯 第 10 项"})
+    ]})})
+)
+
+// ═══ StackPanel ═══
+let demoStackPanel = () => demoSection("StackPanel 线性布局",
+    "垂直/水平排列。最常用布局",
+    stackpanel({"spacing" = 8, "children" = [
+        label({"text" = "垂直 (默认):", "fontSize" = 11, "color" = "#64748b"}),
+        stackpanel({"spacing" = 2, "children" = [
+            border({"background" = "#e0e7ff", "padding" = 6, "content" = label({"text" = "行 1"})}),
+            border({"background" = "#c7d2fe", "padding" = 6, "content" = label({"text" = "行 2"})}),
+            border({"background" = "#a5b4fc", "padding" = 6, "content" = label({"text" = "行 3"})})
+        ]}),
+        label({"text" = "水平:", "fontSize" = 11, "color" = "#64748b"}),
+        stackpanel({"orientation" = "horizontal", "spacing" = 4, "children" = [
+            border({"background" = "#e0e7ff", "padding" = 8, "content" = label({"text" = "A"})}),
+            border({"background" = "#c7d2fe", "padding" = 8, "content" = label({"text" = "B"})}),
+            border({"background" = "#a5b4fc", "padding" = 8, "content" = label({"text" = "C"})})
+        ]})
+    ]})
+)
+
+// ═══ Grid ═══
+let demoGrid = () => demoSection("Grid 网格布局",
+    "行列布局。auto / * / 固定值",
+    grid({"rows" = ["auto", "auto", "auto"], "cols" = [80, "*"], "children" = [
+        label({"text" = "用户名:", "fontSize" = 12, "padding" = 4}),
+        textbox({"placeholder" = "请输入", "col" = 1, "width" = 200}),
+        label({"text" = "密码:", "fontSize" = 12, "padding" = 4, "row" = 1}),
+        textbox({"placeholder" = "请输入", "col" = 1, "row" = 1, "width" = 200}),
+        label({"text" = "邮箱:", "fontSize" = 12, "padding" = 4, "row" = 2}),
+        textbox({"placeholder" = "请输入", "col" = 1, "row" = 2, "width" = 200})
+    ]})
+)
+
+// ═══ TabControl ═══
+let demoTabControl = () => demoSection("TabControl 标签页",
+    "多页切换。设置面板、多视图",
+    tabcontrol({"items" = [
+        tabitem({"header" = "基本设置", "content" = stackpanel({"spacing" = 8, "padding" = 12, "children" = [
+            label({"text" = "语言", "fontSize" = 12}),
+            combobox({"items" = ["简体中文", "English", "日本語"], "width" = 180}),
+            checkbox({"text" = "自动保存", "checked" = true})
+        ]})}),
+        tabitem({"header" = "通知", "content" = stackpanel({"spacing" = 6, "padding" = 12, "children" = [
+            checkbox({"text" = "邮件通知", "checked" = true}),
+            checkbox({"text" = "桌面通知", "checked" = true}),
+            checkbox({"text" = "声音提醒", "checked" = false})
+        ]})})
+    ]})
+)
+
+// ═══ Dialog ═══
+let demoDialog = () => demoSection("Dialog 浮层对话框",
+    "遮罩 + 居中卡片。支持全屏、嵌套",
+    stackpanel({"spacing" = 8, "children" = [
+        button({"text" = "打开帮助", "class" = "btnPrimary",
+            "onClick" = () => { showHelp.set(true) }}),
+        label({"text" = "点击按钮打开遮罩对话框", "fontSize" = 11, "color" = "#94a3b8"}),
+        dialog({"visible" = showHelp, "title" = "帮助说明", "width" = 380, "maskClosable" = true,
+            "content" = stackpanel({"spacing" = 10, "children" = [
+                label({"text" = "📖 使用说明", "fontSize" = 15, "color" = "#1e293b"}),
+                label({"text" = "• 左侧导航选择控件", "fontSize" = 12, "color" = "#475569"}),
+                label({"text" = "• 右侧查看实时预览", "fontSize" = 12, "color" = "#475569"}),
+                button({"text" = "知道了", "class" = "btnPrimary",
+                    "horizontalAlignment" = "right",
+                    "onClick" = () => { showHelp.set(false) }})
+            ]})
+        })
+    ]})
+)
+
+// ═══ Image ═══
+let demoImage = () => demoSection("Image 图片",
+    "显示本地文件或 URL 图片。支持 stretch: uniform/fill/none",
+    stackpanel({"spacing" = 6, "children" = [
+        image({"width" = 160, "height" = 90, "stretch" = "uniform"}),
+        label({"text" = "适用场景: 用户头像、Logo、产品图", "fontSize" = 11, "color" = "#94a3b8"})
+    ]})
+)
+
+// ═══ Reactive ═══
+let demoReactive = () => demoSection("响应式 inpc / computed / twoway",
+    "核心机制: 状态变化自动驱动 UI 更新",
+    stackpanel({"spacing" = 8, "children" = [
+        label({"text" = computed(() => "🔊 " + int(volumeVal.get()) + "%  ☀ " + int(brightness.get()) + "%  📁 " + int(uploadProgress.get()) + "%"), "fontSize" = 13}),
+        label({"text" = computed(() => "合计: " + (int(volumeVal.get()) + int(brightness.get()) + int(uploadProgress.get()))), "fontSize" = 14, "color" = "#6366f1"}),
+        label({"text" = "↑ 三个独立 inpc → computed 自动求和", "fontSize" = 11, "color" = "#94a3b8"})
+    ]})
+)
+
+// ═══ Tooltip ═══
+let demoTooltip = () => demoSection("ToolTip 提示",
+    "所有控件通用的 tooltip 属性",
+    stackpanel({"orientation" = "horizontal", "spacing" = 8, "children" = [
+        button({"text" = "保存", "class" = "btnPrimary", "tooltip" = "保存到数据库"}),
+        button({"text" = "删除", "class" = "btnGhost", "tooltip" = "此操作不可恢复"}),
+        textbox({"placeholder" = "搜索", "tooltip" = "支持模糊匹配", "width" = 140})
+    ]})
+)
+
+// ═══ Style ═══
+let demoStyle = () => demoSection("Style 样式系统",
+    "全局 class + 属性缩写 bg/size/halign/valign/radius",
+    stackpanel({"spacing" = 8, "children" = [
+        stackpanel({"orientation" = "horizontal", "spacing" = 8, "children" = [
+            button({"text" = "主要", "class" = "btnPrimary"}),
+            button({"text" = "次要", "class" = "btnGhost"})
+        ]}),
+        label({"text" = "style('btnPrimary',{...}) → class='btnPrimary' 复用", "fontSize" = 11, "color" = "#64748b"}),
+        label({"text" = "缩写: bg→background size→fontSize halign→horizontalAlignment valign→verticalAlignment radius→cornerRadius", "fontSize" = 11, "color" = "#64748b"})
+    ]})
+)
+
+// ═══ 路由 ═══
+let isPage = (id) => computed(() => currentPage.get() == id)
+
+// ═══ 主窗口 ═══
+return window({
+    "title" = "AvaloniaScriptLoader — 控件画廊",
+    "width" = 880, "height" = 620,
+    "content" = grid({
+        "rows" = ["*"], "cols" = [160, "*"],
+        "children" = [
+            scrollviewer({"col" = 0, "content" = stackpanel({
+                "class" = "sidebar", "spacing" = 2,
+                "children" = [
+                    label({"text" = "基础控件", "class" = "sidebarCat"}),
+                    navItem("label",       "Label 标签"),
+                    navItem("button",      "Button 按钮"),
+                    navItem("textbox",     "TextBox 输入"),
+                    label({"text" = "选择控件", "class" = "sidebarCat"}),
+                    navItem("checkbox",    "CheckBox 复选"),
+                    navItem("combobox",    "ComboBox 下拉"),
+                    navItem("listbox",     "ListBox 列表"),
+                    navItem("slider",      "Slider 滑块"),
+                    label({"text" = "进度与日期", "class" = "sidebarCat"}),
+                    navItem("progressbar", "ProgressBar"),
+                    navItem("datepicker",  "DatePicker"),
+                    label({"text" = "容器与布局", "class" = "sidebarCat"}),
+                    navItem("border",      "Border 边框"),
+                    navItem("scrollviewer","ScrollViewer"),
+                    navItem("stackpanel",  "StackPanel"),
+                    navItem("grid",        "Grid 网格"),
+                    navItem("tabcontrol",  "TabControl"),
+                    label({"text" = "高级", "class" = "sidebarCat"}),
+                    navItem("dialog",      "Dialog 对话框"),
+                    navItem("image",       "Image 图片"),
+                    label({"text" = "框架特性", "class" = "sidebarCat"}),
+                    navItem("reactive",    "响应式绑定"),
+                    navItem("tooltip",     "ToolTip 提示"),
+                    navItem("style",       "Style 样式")
+                ]
+            })}),
+
+            scrollviewer({"col" = 1, "content" = stackpanel({
+                "spacing" = 16, "padding" = 24,
+                "children" = [
+                    label({"text" = "控件画廊", "class" = "pageTitle"}),
+                    label({"text" = "19 种控件 + 响应式特性  |  QQ群 955830545", "class" = "pageSub"}),
+                    border({"class" = "divider", "height" = 1}),
+                    stackpanel({"spacing" = 0, "children" = [
+                        vif(isPage("label"),       demoLabel()),
+                        vif(isPage("button"),      demoButton()),
+                        vif(isPage("textbox"),     demoTextBox()),
+                        vif(isPage("checkbox"),    demoCheckBox()),
+                        vif(isPage("combobox"),    demoComboBox()),
+                        vif(isPage("listbox"),     demoListBox()),
+                        vif(isPage("slider"),      demoSlider()),
+                        vif(isPage("progressbar"), demoProgressBar()),
+                        vif(isPage("datepicker"),  demoDatePicker()),
+                        vif(isPage("border"),      demoBorder()),
+                        vif(isPage("scrollviewer"),demoScrollViewer()),
+                        vif(isPage("stackpanel"),  demoStackPanel()),
+                        vif(isPage("grid"),        demoGrid()),
+                        vif(isPage("tabcontrol"),  demoTabControl()),
+                        vif(isPage("dialog"),      demoDialog()),
+                        vif(isPage("image"),       demoImage()),
+                        vif(isPage("reactive"),    demoReactive()),
+                        vif(isPage("tooltip"),     demoTooltip()),
+                        vif(isPage("style"),       demoStyle())
+                    ]})
+                ]
+            })})
+        ]
+    })
+})

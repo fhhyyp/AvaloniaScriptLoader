@@ -1,0 +1,31 @@
+// ═══ Gallery 主题 — Indigo 配色 ═══
+import { style } from "avalonia"
+
+// 侧边栏（深色）
+style("sidebar",       {"background" = "#0f172a", "padding" = 10})
+style("sidebarCat",    {"color" = "#64748b", "fontSize" = 10, "margin" = "4,14,4,6"})
+style("sidebarBtn",    {"color" = "#94a3b8", "fontSize" = 12, "padding" = "6,10"})
+style("sidebarActive", {"color" = "#ffffff", "fontSize" = 12, "background" = "#6366f1", "padding" = "6,10"})
+
+// 页面
+style("pageTitle",    {"color" = "#0f172a", "fontSize" = 22})
+style("pageSub",      {"color" = "#94a3b8", "fontSize" = 11})
+style("demoTitle",    {"color" = "#1e293b", "fontSize" = 15})
+style("demoDesc",     {"color" = "#64748b", "fontSize" = 11})
+style("divider",      {"background" = "#e2e8f0", "height" = 1})
+
+// 代码块
+style("codeBlock",    {"background" = "#cdd6f4", "color" = "#cdd6f4", "fontSize" = 11, "padding" = 12})
+
+// 卡片
+style("demoCard",     {"background" = "#ffffff", "padding" = 14,
+    "borderThickness" = 1, "borderBrush" = "#e2e8f0", "cornerRadius" = 6})
+
+// 按钮
+style("btnPrimary",  {"background" = "#6366f1", "color" = "#ffffff", "fontSize" = 12})
+style("btnGhost",    {"color" = "#6366f1", "fontSize" = 12})
+
+// 标签
+style("tagInfo",     {"background" = "#eef2ff", "color" = "#4338ca", "fontSize" = 10})
+
+return { "_loaded" = true }
