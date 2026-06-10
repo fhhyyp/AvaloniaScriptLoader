@@ -4,6 +4,7 @@ using ScriptLang.Runtime;
 using AvaloniaScriptLoader.Factory;
 using AvaloniaScriptLoader.Model;
 using AvaloniaScriptLoader.Wrapper;
+using System.Diagnostics;
 
 namespace AvaloniaScriptLoader.Builder;
 
@@ -59,6 +60,10 @@ public class ControlBuilder
         // === v-if 条件渲染 ===
         if (type == "vif")
             return BuildVif(descriptor);
+
+        // === v-for 响应式列表 ===
+        if (type == "vfor")
+            return BuildVfor(descriptor);
 
         // === 标准控件 ===
         var control = CreateNativeControl(type);
@@ -371,135 +376,73 @@ public class ControlBuilder
     }
 
     // ========================================================================
-    // v-for 列表渲染
+    // v-for 响应式列表（自动订阅 array 变更）
+    //
+    // 注：模板 Lambda 在新 VM 中求值时需要的全局变量（label/button 等），
+    // 已由主脚本 import 执行时写入 GlobalSlotRegistry，无需额外同步。
+    // Count 不会在 Build 阶段变化，GetValues() 返回已存在的正确值数组。
     // ========================================================================
 
-    /// <summary>
-    /// 构建 vfor 列表渲染。
-    /// </summary>
     private Control BuildVfor(ObjectValue descriptor)
     {
         var arrayWrapper = descriptor.Properties["__array"];
-        var templateValue = descriptor.Properties["__template"];
-        var template = templateValue as ICallable;
+        var template = descriptor.Properties["__template"] as ICallable;
+        var preRendered = descriptor.Properties["__children"] as ArrayValue;
 
-        // 支持 InpcValue 和 ComputedValue 作为数组源
         var inpc = InpcFactory.ExtractInpc(arrayWrapper);
-        var computedArr = InpcFactory.ExtractComputed(arrayWrapper);
+        var computed = InpcFactory.ExtractComputed(arrayWrapper);
 
         Func<Value> getArray = inpc != null ? () => inpc.Get()
-            : computedArr != null ? () => computedArr.Get()
+            : computed != null ? () => computed.Get()
             : null;
 
         Action<Action<Value>> subscribe = inpc != null ? cb => inpc.OnChange(cb)
-            : computedArr != null ? cb => computedArr.OnChange(cb)
+            : computed != null ? cb => computed.OnChange(cb)
             : null;
 
-        if (getArray == null || subscribe == null || template == null)
-            return new Panel();
-
         var engine = _adapter.Engine!;
-        EnsureGlobalSlotsForTemplate(engine);
+        var placeholder = new StackPanel();
 
-        var placeholder = new VirtualizingStackPanel();
-        var rendered = new Dictionary<int, (Control control, int itemHash)>();
-
-        Control RenderItem(int i, Value item)
+        void RebuildFromArray()
         {
-            var idx = NumberValueFactory.Create(i);
-            try
-            {
-                var task = template.CallAsync(engine, [item, idx]);
-                var result = task.GetAwaiter().GetResult();
-                return result is ObjectValue childDesc ? BuildInternal(childDesc)
-                    : new TextBlock { Text = "?" };
-            }
-            catch (Exception ex)
-            {
-                Log.Warn($"[vfor] template failed index={i}: {ex.Message}");
-                return new TextBlock { Text = "⚠" };
-            }
-        }
-
-        void FullRebuild()
-        {
-            var arr = getArray();
+            var arr = getArray?.Invoke();
             if (arr is not ArrayValue av) return;
+
             Dispatcher.UIThread.Post(() =>
             {
                 placeholder.Children.Clear();
-                rendered.Clear();
                 for (int i = 0; i < av.Elements.Count; i++)
                 {
-                    var c = RenderItem(i, av.Elements[i]);
-                    placeholder.Children.Add(c);
-                    rendered[i] = (c, av.Elements[i].GetHashCode());
+                    try
+                    {
+                        var task = template!.CallAsync(engine, [av.Elements[i], NumberValueFactory.Create(i)]);
+                        var result = task.GetAwaiter().GetResult();
+                        if (result is ObjectValue childDesc)
+                            placeholder.Children.Add(BuildInternal(childDesc));
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Warn($"[vfor] rebuild failed index={i}: {ex.Message}");
+                    }
                 }
             });
         }
 
-        void IncrementalUpdate()
+        // 初始渲染：使用预渲染结果（避免立即跨 VM 调用）
+        if (preRendered != null)
         {
-            var arr = getArray();
-            if (arr is not ArrayValue av) return;
-            Dispatcher.UIThread.Post(() =>
+            foreach (var childDesc in preRendered.Elements)
             {
-                int n = av.Elements.Count;
-                for (int i = 0; i < n; i++)
-                {
-                    var item = av.Elements[i];
-                    var hash = item.GetHashCode();
-                    if (rendered.TryGetValue(i, out var ex) && ex.itemHash == hash)
-                        continue; // 复用
-                    var c = RenderItem(i, item);
-                    if (i < placeholder.Children.Count)
-                    {
-                        placeholder.Children[i] = c;
-                    }
-                    else
-                    {
-                        placeholder.Children.Add(c);
-                    }
-                    rendered[i] = (c, hash);
-                }
-                while (placeholder.Children.Count > n)
-                    placeholder.Children.RemoveAt(placeholder.Children.Count - 1);
-                foreach (var k in rendered.Keys.Where(k => k >= n).ToArray())
-                    rendered.Remove(k);
-            });
+                if (childDesc is ObjectValue childObj)
+                    placeholder.Children.Add(BuildInternal(childObj));
+            }
         }
 
-        FullRebuild();
-        subscribe(_ => IncrementalUpdate());
+        // 订阅变更
+        if (subscribe != null)
+            subscribe(_ => RebuildFromArray());
 
         return placeholder;
-    }
-
-    /// <summary>
-    /// 确保 vfor 模板 Lambda 中的 import 变量在 GlobalSlotRegistry 有正确的值。
-    /// 模板运行在新 VM 中，需要全局槽位值可用。
-    /// 注意：只 SetValue，不 Register — 槽位索引在编译时已固定，重新注册会改变索引。
-    /// </summary>
-    /// <summary>
-    /// 确保 vfor 模板 Lambda 中的控件工厂在 GlobalSlotRegistry 有值。
-    /// 仅设置已存在槽位的值，不注册新槽位（Register 会扩容数组，清空所有已有值）。
-    /// </summary>
-    private static void EnsureGlobalSlotsForTemplate(ScriptLang.ScriptEngine engine)
-    {
-        var controlsExports = Modules.ControlsModule.CreateExports();
-
-        foreach (var kv in controlsExports.Properties)
-        {
-            try
-            {
-                int slot = ScriptLang.Runtime.ByteCode.GlobalSlotRegistry.GetSlot(kv.Key);
-                ScriptLang.Runtime.ByteCode.GlobalSlotRegistry.SetValue(slot, kv.Value);
-            }
-            catch (KeyNotFoundException)
-            {
-                // 槽位不存在说明模板 Lambda 不使用此变量（通过闭包捕获），跳过
-            }
-        }
     }
 
     // ========================================================================

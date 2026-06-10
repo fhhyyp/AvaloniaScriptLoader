@@ -63,11 +63,12 @@ public static class StructureFactory
     // ========================================================================
 
     /// <summary>
-    /// 创建 vfor() 脚本函数 — 立即求值返回 ArrayValue（放在 children 中）。
-    /// 用法: vfor(items, (item, index) => element)
+    /// 创建 vfor() 脚本函数 — 返回响应式列表描述符。
     ///
-    /// 初始渲染由脚本时求值保证（全局变量可用），
-    /// 数据变更后的刷新由脚本事发者通过重新调用 vfor 手动触发。
+    /// 脚本时求值模板生成初始 __children，Build 时 ControlBuilder 订阅 __array
+    /// 变更自动重建列表。用户无需手动调用 setChildren。
+    ///
+    /// 用法: vfor(items, (item, index) => element)
     /// </summary>
     public static FunctionValue CreateVforFunction()
     {
@@ -80,33 +81,47 @@ public static class StructureFactory
             var template = args[1] as ICallable
                 ?? throw new ArgumentException("vfor() 的第二个参数必须是一个函数");
 
+            // 脚本时求值初始列表（全局变量可用）
             var inpc = InpcFactory.ExtractInpc(arrayWrapper);
             var computed = InpcFactory.ExtractComputed(arrayWrapper);
             Value arrayVal = inpc?.Get() ?? computed?.Get() ?? Value.Null;
 
-            if (arrayVal is not ArrayValue av)
-                return new ArrayValue([]);
-
-            var result = new List<Value>();
-            for (int i = 0; i < av.Elements.Count; i++)
+            var preRendered = new List<Value>();
+            if (arrayVal is ArrayValue av)
             {
-                try
+                for (int i = 0; i < av.Elements.Count; i++)
                 {
-                    var task = template.CallAsync(engine, [av.Elements[i], NumberValueFactory.Create(i)]);
-                    var rendered = task.GetAwaiter().GetResult();
-                    if (rendered is not NullValue)
-                        result.Add(rendered);
-                }
-                catch (Exception ex)
-                {
-                    Log.Warn($"[vfor] template failed index={i}: {ex.Message}");
+                    try
+                    {
+                        var task = template.CallAsync(engine, [av.Elements[i], NumberValueFactory.Create(i)]);
+                        var rendered = task.GetAwaiter().GetResult();
+                        if (rendered is not NullValue)
+                            preRendered.Add(rendered);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Warn($"[vfor] pre-render failed index={i}: {ex.Message}");
+                    }
                 }
             }
-            return new ArrayValue(result);
+
+            // 返回响应式描述符：{ __type: "vfor", __array, __template, __children }
+            return new ObjectValue(new Dictionary<string, Value>
+            {
+                [ControlMeta.TypeKey] = StringValue.Create("vfor"),
+                ["__array"] = arrayWrapper,
+                ["__template"] = (Value)template,
+                ["__children"] = new ArrayValue(preRendered),
+            });
         });
     }
 
-    public static bool IsVfor(Value value) => false; // 不再使用旧格式
+    public static bool IsVfor(Value value)
+    {
+        return value is ObjectValue obj
+            && obj.Properties.TryGetValue(ControlMeta.TypeKey, out var type)
+            && type.AsString() == "vfor";
+    }
 
     // ========================================================================
     // component(renderFn) — 组件定义

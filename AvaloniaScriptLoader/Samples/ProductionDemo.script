@@ -26,36 +26,22 @@ var searchQuery = inpc("", "twoway")
 var userCount = computed(() => "共 " + displayUsers.get().length + " 个用户")
 
 // ================================================================
-// 搜索过滤逻辑（更新 displayUsers + 重建 vfor 列表）
+// 搜索过滤逻辑 — 只需更新 displayUsers，vfor 自动刷新
 // ================================================================
-let buildUserList = (usersArr) => {
-    return vfor(usersArr, (user, index) => {
-        return label({
-            "text" = (index + 1) + ". " + user.name + "  <" + user.email + ">  [" + user.role + "]  " + user.status,
-            "fontSize" = 13, "color" = "#333"
-        })
-    })
-}
-
 let doSearch = () => {
     let query = searchQuery.get()
     if (query == "") {
         displayUsers.set(allUsers)
-    } else {
-        let result = []
-        for i in range(0, allUsers.length) {
-            let u = allUsers[i]
-            if (u.name.contains(query)) {
-                result.add(u)
-            }
+        return
+    }
+    let result = []
+    for i in range(0, allUsers.length) {
+        let u = allUsers[i]
+        if (u.name.contains(query)) {
+            result.add(u)
         }
-        displayUsers.set(result)
     }
-    // 重建列表（setChildren 更新 StackPanel 内容）
-    let container = app.find("userListBox")
-    if (container != null) {
-        container.setChildren(buildUserList(displayUsers))
-    }
+    displayUsers.set(result)
 }
 
 // ================================================================
@@ -131,12 +117,16 @@ return window({
                                 })
                             }),
 
-                            // 用户列表
+                            // 用户列表（vfor 自动响应 displayUsers 变更）
                             scrollviewer({
                                 "content" = stackpanel({
-                                    "name" = "userListBox",
                                     "spacing" = 4, "padding" = 12,
-                                    "children" = buildUserList(displayUsers)
+                                    "children" = [
+                                        vfor(displayUsers, (user, index) => {
+                                            return label({"text" = (index + 1) + ". " + user.name + "  <" + user.email + ">  [" + user.role + "]  " + user.status,
+                                                "fontSize" = 13, "color" = "#333"})
+                                        })
+                                    ]
                                 })
                             })
                         ]
