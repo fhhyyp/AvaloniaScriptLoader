@@ -122,8 +122,8 @@ public static class ControlFactory
             descriptor["class"] = classVal;
 
         // 复制通用属性（所有控件都支持）
-        foreach (var commonProp in new[] { "width", "height", "minWidth", "minHeight", "margin", "padding", "visible", "enabled", "name",
-            "row", "col", "rowSpan", "colSpan", "onKeyDown" })
+        foreach (var commonProp in new[] { "width", "height", "minWidth", "minHeight", "maxWidth", "maxHeight", "margin", "padding", "visible", "enabled", "name",
+            "horizontalAlignment", "verticalAlignment", "row", "col", "rowSpan", "colSpan", "onKeyDown" })
         {
             if (optProps.TryGetValue(commonProp, out var value))
             {

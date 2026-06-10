@@ -50,16 +50,21 @@ public class ScriptEngineAdapter : IDisposable
     /// </summary>
     public void Initialize()
     {
-        _engine = new ScriptEngine();
+        _engine = new ScriptEngine
+        {
+            //IsPrintVMInfo = true,
+            //IsPrintInputSciptContent = true
+        };
         _controlRegistry.Clear();
         RegisterBuiltinModules();
         Log.Info("ScriptEngineAdapter initialized");
     }
 
     /// <summary>
-    /// 执行脚本代码，返回结构化结果（统一异常边界）
+    /// 执行脚本代码，返回结构化结果
     /// </summary>
-    public async Task<ScriptResult> ExecuteAsync(string scriptCode, string sourceName)
+    /// <param name="rootPath">脚本所在目录（用于 import 路径解析，可选）</param>
+    public async Task<ScriptResult> ExecuteAsync(string scriptPath)
     {
         var sw = Stopwatch.StartNew();
 
@@ -68,7 +73,14 @@ public class ScriptEngineAdapter : IDisposable
             if (_engine == null)
                 return ScriptResult.Fail("引擎未初始化，请先调用 Initialize()");
 
-            // 清理控件注册表（不重置 GlobalSlotRegistry — 保持槽位索引一致）
+            // 设置 import 根路径（internal setter，需反射获取非公开访问器）
+            /*if (rootPath != null)
+            {
+                typeof(ScriptLang.Runtime.ImportResolver)
+                    .GetProperty("RootPath")?.GetSetMethod(true)
+                    ?.Invoke(_engine.ImportResolver, [rootPath]);
+            }*/
+
             _controlRegistry.Clear();
             RegisterBuiltinModules();
 
@@ -76,13 +88,13 @@ public class ScriptEngineAdapter : IDisposable
             ScriptTask task;
             try
             {
-                task = _engine.CreateTaskFromSource(scriptCode, sourceName);
+                task = _engine.CreateTask(scriptPath);
             }
             catch (Exception ex)
             {
                 sw.Stop();
                 return ScriptResult.Fail(
-                    $"脚本编译错误 ({sourceName})", ex.Message);
+                    $"脚本编译错误 ({scriptPath})", ex.Message);
             }
 
             Value result;
@@ -97,7 +109,7 @@ public class ScriptEngineAdapter : IDisposable
                     task.Cancel();
                     sw.Stop();
                     return ScriptResult.Fail(
-                        $"脚本执行超时（>{ExecutionTimeoutSeconds}秒）", sourceName);
+                        $"脚本执行超时（>{ExecutionTimeoutSeconds}秒）", scriptPath);
                 }
                 result = await executeTask;
             }
@@ -118,10 +130,10 @@ public class ScriptEngineAdapter : IDisposable
         catch (Exception ex)
         {
             sw.Stop();
-            Log.Error($"ExecuteAsync failed ({sourceName}): {ex.Message}");
+            Log.Error($"ExecuteAsync failed ({scriptPath}): {ex.Message}");
 
             return ScriptResult.Fail(
-                $"脚本执行异常 ({sourceName})",
+                $"脚本执行异常 ({scriptPath})",
                 ex.InnerException?.Message ?? ex.Message);
         }
     }

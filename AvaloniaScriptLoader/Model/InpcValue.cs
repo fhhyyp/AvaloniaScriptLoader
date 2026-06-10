@@ -152,7 +152,12 @@ public class InpcValue : IDisposable
         if (a.IsNumber && b.IsNumber)
         {
             try { return Math.Abs(a.As<double>() - b.As<double>()) < 1e-10; }
-            catch { return false; }
+            catch (Exception ex) {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine(ex);
+#endif
+                return false;
+            }
         }
         if (a.IsString && b.IsString) return a.AsString() == b.AsString();
         if (a.IsBool && b.IsBool) return a.AsBool() == b.AsBool();

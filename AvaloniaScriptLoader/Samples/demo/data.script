@@ -1,0 +1,53 @@
+// ═══ 数据层：状态 + 搜索逻辑 ═══
+import { inpc, computed } from "avalonia"
+
+var allUsers = [
+    {"name"="张伟",   "email"="zhangwei@company.cn",   "role"="管理员", "status"="活跃", "avatar"="张"},
+    {"name"="李娜",   "email"="lina@company.cn",       "role"="编辑",   "status"="活跃", "avatar"="李"},
+    {"name"="王磊",   "email"="wanglei@company.cn",    "role"="用户",   "status"="禁用", "avatar"="王"},
+    {"name"="赵敏",   "email"="zhaomin@company.cn",    "role"="用户",   "status"="活跃", "avatar"="赵"},
+    {"name"="孙浩然", "email"="sunhaoran@company.cn",  "role"="编辑",   "status"="活跃", "avatar"="孙"},
+    {"name"="周杰",   "email"="zhoujie@company.cn",    "role"="管理员", "status"="活跃", "avatar"="周"},
+    {"name"="吴桐",   "email"="wutong@company.cn",     "role"="用户",   "status"="活跃", "avatar"="吴"},
+    {"name"="郑雨",   "email"="zhengyu@company.cn",    "role"="编辑",   "status"="禁用", "avatar"="郑"},
+    {"name"="冯凯",   "email"="fengkai@company.cn",    "role"="用户",   "status"="活跃", "avatar"="冯"},
+    {"name"="陈晨",   "email"="chenchen@company.cn",   "role"="用户",   "status"="活跃", "avatar"="陈"}
+]
+
+var displayUsers = inpc(allUsers)
+var searchQuery = inpc("", "twoway")
+var activeTab = inpc(0)
+
+var totalCount = computed(() => displayUsers.get().length)
+var activeCount = computed(() => {
+    var n = 0
+    let arr = displayUsers.get()
+    for i in range(0, arr.length) {
+        if (arr[i].status == "活跃") { n = n + 1 }
+    }
+    return n
+})
+var stats = computed(() => totalCount.get() + " 个用户 ｜ " + activeCount.get() + " 个活跃")
+
+let doSearch = () => {
+    let q = searchQuery.get()
+    if (q == "") then {
+        displayUsers.set(allUsers)
+        return
+    }
+    let r = []
+    for i in range(0, allUsers.length) {
+        let u = allUsers[i]
+        if (u.name.contains(q) || u.email.contains(q)) { r.add(u) }
+    }
+    displayUsers.set(r)
+}
+
+return {
+    "allUsers"       = allUsers,
+    "displayUsers"   = displayUsers,
+    "searchQuery"    = searchQuery,
+    "activeTab"      = activeTab,
+    "stats"          = stats,
+    "doSearch"       = doSearch
+}

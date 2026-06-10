@@ -39,12 +39,13 @@ public partial class MainWindow : Window
 
             // 2. 加载并执行示例脚本
             var scriptPath = FindScriptFile();
-            var scriptCode = await File.ReadAllTextAsync(scriptPath);
-            var scriptName = Path.GetFileName(scriptPath);
-
+            //var scriptCode = await File.ReadAllTextAsync(scriptPath);
+            //var scriptName = Path.GetFileName(scriptPath);
+            //
             // 3. 执行脚本（后台线程，带超时保护）
+            //var scriptDir = Path.GetDirectoryName(scriptPath);
             var scriptResult = await Task.Run(() =>
-                _adapter.ExecuteAsync(scriptCode, scriptName));
+                _adapter.ExecuteAsync(scriptPath));
 
             if (!scriptResult.Success)
             {
@@ -98,10 +99,10 @@ public partial class MainWindow : Window
         var baseDir = AppContext.BaseDirectory;
         var samplesDir = Path.Combine(baseDir, "Samples");
 
-        // 默认: ProductionDemo.script
-        var prodPath = Path.Combine(samplesDir, "ProductionDemo.script");
-        if (File.Exists(prodPath))
-            return prodPath;
+        // 默认: demo/main.script
+        var demoPath = Path.Combine(samplesDir, "demo", "main.script");
+        if (File.Exists(demoPath))
+            return demoPath;
 
         // 回退 HelloWorld.script
         var helloPath = Path.Combine(samplesDir, "HelloWorld.script");

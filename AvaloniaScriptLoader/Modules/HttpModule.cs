@@ -92,7 +92,12 @@ public static class HttpModule
             if (_cachedBody == null)
             {
                 try { _cachedBody = response.Content.ReadAsStringAsync().GetAwaiter().GetResult(); }
-                catch { _cachedBody = ""; }
+                catch (Exception ex) {
+#if DEBUG
+                    System.Diagnostics.Debug.WriteLine(ex);
+#endif
+                    _cachedBody = "";
+                }
             }
             return _cachedBody;
         }

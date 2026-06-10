@@ -163,8 +163,23 @@ public class PropertyBinder
     // 属性映射核心
     // ========================================================================
 
+    /// <summary>属性缩写映射（仅复合词或过长单词，同时保留原名）</summary>
+    private static readonly Dictionary<string, string> _shorthands = new()
+    {
+        ["bg"]     = "background",
+        ["size"]   = "fontSize",
+        ["halign"] = "horizontalAlignment",
+        ["valign"] = "verticalAlignment",
+        ["radius"] = "cornerRadius",
+    };
+
+    /// <summary>归一化属性名（缩写 → 全名）</summary>
+    private static string NormalizeProp(string name)
+        => _shorthands.TryGetValue(name, out var full) ? full : name;
+
     private void ApplyProperty(Control control, string name, Value value)
     {
+        name = NormalizeProp(name);
         switch (name)
         {
             // === 通用布局属性 ===
@@ -179,6 +194,18 @@ public class PropertyBinder
                 break;
             case "minHeight":
                 control.MinHeight = ToDouble(value);
+                break;
+            case "maxWidth":
+                control.MaxWidth = ToDouble(value);
+                break;
+            case "maxHeight":
+                control.MaxHeight = ToDouble(value);
+                break;
+            case "horizontalAlignment":
+                control.HorizontalAlignment = ToHorizontalAlign(value);
+                break;
+            case "verticalAlignment":
+                control.VerticalAlignment = ToVerticalAlign(value);
                 break;
             case "margin":
                 control.Margin = ToThickness(value);
@@ -216,6 +243,7 @@ public class PropertyBinder
 
     private void ApplyControlSpecific(Control control, string name, Value value)
     {
+        name = NormalizeProp(name);
         // 使用 if/else 链而非 switch 模式匹配，避免 Avalonia 12.x 类层次冲突
         if (control is Window window)
             ApplyWindowProperty(window, name, value);
@@ -263,7 +291,11 @@ public class PropertyBinder
                 if (!string.IsNullOrEmpty(src))
                 {
                     try { img.Source = new Avalonia.Media.Imaging.Bitmap(src); }
-                    catch { /* 文件不存在或格式错误 */ }
+                    catch (Exception ex) {
+#if DEBUG
+                        System.Diagnostics.Debug.WriteLine(ex);
+#endif
+                    }
                 }
                 break;
             case "stretch":
@@ -683,6 +715,28 @@ public class PropertyBinder
         }
 
         return new Thickness(0);
+    }
+
+    public static Avalonia.Layout.HorizontalAlignment ToHorizontalAlign(Value value)
+    {
+        return value.AsString()?.ToLowerInvariant() switch
+        {
+            "center" => Avalonia.Layout.HorizontalAlignment.Center,
+            "right" => Avalonia.Layout.HorizontalAlignment.Right,
+            "stretch" => Avalonia.Layout.HorizontalAlignment.Stretch,
+            _ => Avalonia.Layout.HorizontalAlignment.Left,
+        };
+    }
+
+    public static Avalonia.Layout.VerticalAlignment ToVerticalAlign(Value value)
+    {
+        return value.AsString()?.ToLowerInvariant() switch
+        {
+            "center" => Avalonia.Layout.VerticalAlignment.Center,
+            "bottom" => Avalonia.Layout.VerticalAlignment.Bottom,
+            "stretch" => Avalonia.Layout.VerticalAlignment.Stretch,
+            _ => Avalonia.Layout.VerticalAlignment.Top,
+        };
     }
 
     public static Avalonia.Media.FontWeight ToFontWeight(Value value)
