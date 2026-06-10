@@ -63,7 +63,6 @@ return window({
                         "width" = 100,
                         "onClick" = () => {
                             // 添加一个新待办项
-                            print("添加一个新待办项")
                             let newItem = "任务 " + (todos.length + 1)
                             todos.add(newItem)
                             todoList.setItems(todos)
@@ -111,10 +110,6 @@ return window({
                         "text" = "全部删除",
                         "width" = 90,
                         "onClick" = () => {
-                            // 逐项 pop 清空数组
-                            // for i in range(0, todos.length){
-                            //     todos.pop()
-                            // }
                             todos.clear()
                             todoList.setItems(todos)
                             statusLabel.setText("共 0 项")
