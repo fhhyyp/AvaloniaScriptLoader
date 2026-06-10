@@ -21,8 +21,8 @@
 
   <ItemGroup>
     <!-- ScriptLang 引用 -->
-    <ProjectReference Include="..\..\C#\SereinScript\SereinScript\ScriptLang\ScriptLang.csproj" />
-    <ProjectReference Include="..\..\C#\SereinScript\SereinScript\ScriptLang.Generator\ScriptLang.Generator.csproj"
+    <ProjectReference Include="..\..\..\C#\SereinScript\SereinScript\ScriptLang\ScriptLang.csproj" />
+    <ProjectReference Include="..\..\..\C#\SereinScript\SereinScript\ScriptLang.Generator\ScriptLang.Generator.csproj"
                       OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
