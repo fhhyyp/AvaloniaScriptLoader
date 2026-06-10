@@ -1,48 +1,64 @@
-// 待办事项列表示例 — ListBox 控件 + 数据动态更新
-// 演示: items 数据绑定、setItems 更新列表、add/pop/removeAt 操作数组
-import { app } from "avalonia"
+// 待办事项列表示例 — ListBox 控件 + 事件参数传递（模拟 Vue $event）
+// 演示: onChange 获取输入文本、onSelect 获取选中项
+import { app, inpc } from "avalonia"
 import { window, stackpanel, button, label, textbox, listbox } from "avalonia.controls"
 
 // 初始数据
-var todos = ["学习 ScriptLang 脚本语言", "设计 Avalonia UI 框架", "编写 ListBox 示例"]
+var todos = inpc(["学习 ScriptLang 脚本语言", "设计 Avalonia UI 框架", "编写事件参数示例"])
 
-// 用脚本变量跟踪输入框文本（读取控件属性需要 getter 支持）
-var inputText = ""
+// 用 inpc 跟踪输入框文本（onChange 事件参数同步）
+var inputText = inpc("")
 
-// 输入框 — 初始 text 为空
+// 输入框 — onChange 接收事件参数 e，读取 e.value 获取当前文本
 let input = textbox({
-    "text" = "",
+    "text" = inputText,    // ← inpc 绑定
     "placeholder" = "输入新待办...",
     "width" = 250,
-    "onChange" = () => {
-        // onChange 当前不传参数，通过 app.log 确认触发
-        app.log("输入框内容已变更")
+    "onChange" = (e) => {
+        // e.value 是 TextBox 当前文本
+        inputText.set(e.value)
     }
 })
 
 // 列表标题
 let titleLabel = label({
-    "text" = "待办事项列表",
-    "fontSize" = 18
+    "text" = "待办事项列表（支持事件参数）",
+    "fontSize" = 16
 })
 
-// 列表控件 — 绑定初始数据
+// 列表控件 — onSelect 接收事件参数 e，读取 e.selected
 let todoList = listbox({
     "items" = todos,
-    "onSelect" = () => {
-        app.log("选中了列表项")
+    "onSelect" = (e) => {
+        // e.type = "select", e.selected = 选中项, e.index = 索引
+        if (e.selected != null) {
+            app.log("选中: " + e.selected + " (索引:" + e.index + ")")
+        }
     }
 })
 
-// 状态标签 — 显示当前项数
+// 状态标签
 let statusLabel = label({
-    "text" = "共 " + todos.length + " 项",
+    "text" = "共 " + todos.get().length + " 项",
     "fontSize" = 12,
     "color" = "#888888"
 })
 
+// 添加按钮的点击逻辑
+let addTodo = () => {
+    let text = inputText.get()
+    if (text != "") {
+        // 获取当前数组，添加新项，整体替换
+        let arr = todos.get()
+        arr.add(text)
+        todos.set(arr)
+        statusLabel.setText("共 " + arr.length + " 项")
+        inputText.set("")  // 清空输入框（通过 inpc 绑定）
+    }
+}
+
 return window({
-    "title" = "待办事项 — ListBox 示例",
+    "title" = "待办事项 — 事件参数",
     "width" = 480,
     "height" = 440,
     "content" = stackpanel({
@@ -52,27 +68,23 @@ return window({
         "children" = [
             titleLabel,
 
-            // 输入行：文本框 + 添加按钮
+            // 输入行
             stackpanel({
                 "orientation" = "horizontal",
                 "spacing" = 10,
                 "children" = [
                     input,
                     button({
-                        "text" = "添加默认项",
-                        "width" = 100,
-                        "onClick" = () => {
-                            // 添加一个新待办项
-                            let newItem = "任务 " + (todos.length + 1)
-                            todos.add(newItem)
-                            todoList.setItems(todos)
-                            statusLabel.setText("共 " + todos.length + " 项")
+                        "text" = "添加",
+                        "width" = 80,
+                        "onClick" = (e) => {
+                            addTodo()
                         }
                     })
                 ]
             }),
 
-            // 列表区域
+            // 列表
             todoList,
 
             // 操作按钮行
@@ -85,11 +97,12 @@ return window({
                     button({
                         "text" = "删除最后一项",
                         "width" = 110,
-                        "onClick" = () => {
-                            if (todos.length > 0) {
-                                todos.removeAt(todos.length - 1)
-                                todoList.setItems(todos)
-                                statusLabel.setText("共 " + todos.length + " 项")
+                        "onClick" = (e) => {
+                            let arr = todos.get()
+                            if (arr.length > 0) {
+                                arr.removeAt(arr.length - 1)
+                                todos.set(arr)
+                                statusLabel.setText("共 " + arr.length + " 项")
                             }
                         }
                     }),
@@ -97,11 +110,12 @@ return window({
                     button({
                         "text" = "删除第一项",
                         "width" = 100,
-                        "onClick" = () => {
-                            if (todos.length > 0) {
-                                todos.removeAt(0)
-                                todoList.setItems(todos)
-                                statusLabel.setText("共 " + todos.length + " 项")
+                        "onClick" = (e) => {
+                            let arr = todos.get()
+                            if (arr.length > 0) {
+                                arr.removeAt(0)
+                                todos.set(arr)
+                                statusLabel.setText("共 " + arr.length + " 项")
                             }
                         }
                     }),
@@ -109,47 +123,9 @@ return window({
                     button({
                         "text" = "全部删除",
                         "width" = 90,
-                        "onClick" = () => {
-                            todos.clear()
-                            todoList.setItems(todos)
+                        "onClick" = (e) => {
+                            todos.set([])
                             statusLabel.setText("共 0 项")
-                        }
-                    })
-                ]
-            }),
-
-            // 预设数据按钮
-            stackpanel({
-                "orientation" = "horizontal",
-                "spacing" = 10,
-                "children" = [
-                    button({
-                        "text" = "加载预设列表",
-                        "width" = 120,
-                        "onClick" = () => {
-                            // 重新设置整个数组
-                            todos = [
-                                "购买食材",
-                                "完成工作报告",
-                                "回复邮件",
-                                "阅读技术文档",
-                                "更新项目计划"
-                            ]
-                            todoList.setItems(todos)
-                            statusLabel.setText("共 " + todos.length + " 项")
-                        }
-                    }),
-
-                    button({
-                        "text" = "添加 5 项",
-                        "width" = 80,
-                        "onClick" = () => {
-                            let start = todos.length + 1
-                            for i in range(0, 5){
-                                todos.add("任务 " + (start + i))
-                            }
-                            todoList.setItems(todos)
-                            statusLabel.setText("共 " + todos.length + " 项")
                         }
                     })
                 ]

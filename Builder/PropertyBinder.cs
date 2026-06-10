@@ -2,13 +2,16 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Threading;
 using ScriptLang.Runtime;
+using AvaloniaScriptLoader.Factory;
 using AvaloniaScriptLoader.Model;
 
 namespace AvaloniaScriptLoader.Builder;
 
 /// <summary>
 /// 属性绑定器 — 将描述符中的属性值映射到 Avalonia 控件属性
+/// 支持 InpcValue 自动订阅（脚本变量变更 → UI 自动更新）
 /// </summary>
 public class PropertyBinder
 {
@@ -30,8 +33,48 @@ public class PropertyBinder
             if (PropertyNames.IsSetterMethod(name)) continue;
             if (name is "children" or "content") continue;
 
-            SetControlProperty(control, name, value);
+            // 检测 InpcValue 包装 → 自动订阅
+            if (InpcFactory.IsInpcWrapper(value))
+            {
+                BindInpcValue(control, name, value);
+            }
+            else
+            {
+                SetControlProperty(control, name, value);
+            }
         }
+    }
+
+    /// <summary>
+    /// 对 InpcValue 包装对象建立自动绑定：
+    /// 1. 读取当前值 → 设置控件初始属性
+    /// 2. 订阅 InpcValue 变更 → Dispatcher 调度更新 UI
+    /// </summary>
+    private void BindInpcValue(Control control, string propertyName, Value inpcWrapper)
+    {
+        var inpc = InpcFactory.ExtractInpc(inpcWrapper);
+        if (inpc == null) return;
+
+        // 1. 设置初始值
+        SetControlProperty(control, propertyName, inpc.Get());
+
+        // 2. 订阅变更
+        inpc.OnChange(newValue =>
+        {
+            // 在 UI 线程更新控件
+            void Update()
+            {
+                SetControlProperty(control, propertyName, newValue);
+            }
+
+            if (Dispatcher.UIThread.CheckAccess())
+                Update();
+            else
+                Dispatcher.UIThread.Post(Update);
+        });
+
+        System.Diagnostics.Debug.WriteLine(
+            $"[InpcBinding] 已绑定 '{propertyName}' → {inpc.SubscriberCount} 订阅者");
     }
 
     /// <summary>
@@ -77,6 +120,14 @@ public class PropertyBinder
                 break;
             case "enabled":
                 control.IsEnabled = value.AsBool();
+                break;
+
+            // === CheckBox 特有（顶层处理，避免路由丢失） ===
+            case "checked":
+                if (control is CheckBox cb)
+                    cb.IsChecked = value.AsBool();
+                else if (control is ToggleSwitch ts)
+                    ts.IsChecked = value.AsBool();
                 break;
 
             // === 通用标识 ===

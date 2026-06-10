@@ -1,11 +1,12 @@
 using Avalonia.Threading;
 using ScriptLang.Runtime;
+using AvaloniaScriptLoader.Factory;
 
 namespace AvaloniaScriptLoader.Modules;
 
 /// <summary>
 /// "avalonia" 内置模块 — 提供系统级 API
-/// 脚本用法: import { app } from "avalonia"
+/// 脚本用法: import { app, inpc } from "avalonia"
 /// </summary>
 public static class AvaloniaModule
 {
@@ -16,7 +17,8 @@ public static class AvaloniaModule
     {
         var properties = new Dictionary<string, Value>
         {
-            ["app"] = CreateAppObject(adapter),
+            ["app"]  = CreateAppObject(adapter),
+            ["inpc"] = InpcFactory.CreateInpcFunction(),
         };
 
         return new ObjectValue(properties);

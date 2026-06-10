@@ -1,0 +1,238 @@
+// INPC 数据绑定示例 — 使用 inpc() 实现控件属性自动绑定
+// 核心优势：不再需要手动调用 setText()，值变更后 UI 自动更新
+import { app, inpc } from "avalonia"
+import { window, stackpanel, button, label, textbox, listbox, checkbox } from "avalonia.controls"
+
+// ================================================================
+// 示例 1: 简单计数器 — inpc 替代手动 setText
+// ================================================================
+var counter = inpc(0)
+
+let countLabel = label({
+    "text" = counter,      // ← 自动绑定！counter.set(n) 后自动更新
+    "fontSize" = 32
+})
+
+// ================================================================
+// 示例 2: 文本绑定 — inpc 包装字符串
+// ================================================================
+var msg = inpc("欢迎使用 INPC 数据绑定！")
+
+let msgLabel = label({
+    "text" = msg,          // ← 自动绑定
+    "fontSize" = 14,
+    "color" = "#0066cc"
+})
+
+// ================================================================
+// 示例 3: 列表绑定 — inpc 包装数组（整体替换）
+// ================================================================
+var itemData = inpc([
+    "INPC 自动绑定 — 无需手动 setText",
+    "值变更 → UI 自动刷新",
+    "支持数字、字符串、数组",
+    "点击下方按钮切换列表"
+])
+
+let itemList = listbox({
+    "items" = itemData,    // ← 自动绑定
+    "onSelect" = () => {
+        app.log("选中项变更")
+    }
+})
+
+// ================================================================
+// 示例 4: CheckBox Boolean 绑定 + 事件参数
+// onChange 接收 e = { type: "change", checked: true/false }
+// ================================================================
+var isChecked = inpc(true)
+var checkStatus = inpc("当前状态: 已启用 ✓")
+
+let toggleCheck = checkbox({
+    "text" = "已启用 (点击下方按钮或直接操作复选框)",
+    "checked" = isChecked,  // ← inpc 自动绑定
+    "onChange" = (e) => {
+        // 模拟 Vue: @change="e => ..." 传入事件对象
+        if (e.checked) {
+            checkStatus.set("当前状态: 已启用 ✓")
+        } else {
+            checkStatus.set("当前状态: 已禁用 ✗")
+        }
+    }
+})
+
+let checkStatusLabel = label({
+    "text" = checkStatus,   // ← inpc 自动绑定
+    "fontSize" = 13,
+    "color" = "#0066cc"
+})
+
+// ================================================================
+// UI 布局
+// ================================================================
+
+return window({
+    "title" = "INPC 数据绑定 — 示例",
+    "width" = 520,
+    "height" = 640,
+    "content" = stackpanel({
+        "orientation" = "vertical",
+        "spacing" = 12,
+        "padding" = 20,
+        "children" = [
+
+            // ---- 标题 ----
+            label({
+                "text" = "INPC 数据绑定演示",
+                "fontSize" = 20
+            }),
+            label({
+                "text" = "import { inpc } from \"avalonia\"",
+                "fontSize" = 11,
+                "color" = "#999999"
+            }),
+
+            // ---- 示例 1: 计数器 ----
+            label({
+                "text" = "═══ 计数器 inpc(0) ═══",
+                "fontSize" = 12,
+                "color" = "#555555"
+            }),
+
+            countLabel,
+
+            stackpanel({
+                "orientation" = "horizontal",
+                "spacing" = 10,
+                "children" = [
+                    button({
+                        "text" = "+1",
+                        "width" = 60,
+                        "onClick" = () => {
+                            let v = counter.get()
+                            counter.set(v + 1)
+                        }
+                    }),
+                    button({
+                        "text" = "+10",
+                        "width" = 60,
+                        "onClick" = () => {
+                            let v = counter.get()
+                            counter.set(v + 10)
+                        }
+                    }),
+                    button({
+                        "text" = "重置",
+                        "width" = 60,
+                        "onClick" = () => {
+                            counter.set(0)
+                        }
+                    })
+                ]
+            }),
+
+            // ---- 示例 2: 文本 ----
+            label({
+                "text" = "═══ 文本绑定 inpc(\"str\") ═══",
+                "fontSize" = 12,
+                "color" = "#555555"
+            }),
+
+            msgLabel,
+
+            stackpanel({
+                "orientation" = "horizontal",
+                "spacing" = 10,
+                "children" = [
+                    button({
+                        "text" = "设为消息 A",
+                        "width" = 120,
+                        "onClick" = () => {
+                            let v = counter.get()
+                            msg.set("消息 A: INPC 绑定生效中:" + v)
+                        }
+                    }),
+                    button({
+                        "text" = "设为消息 B",
+                        "width" = 120,
+                        "onClick" = () => {
+                            
+                            let v = counter.get()
+                            msg.set("消息 B: 数据已自动刷新" + v)
+                        }
+                    })
+                ]
+            }),
+
+            // ---- 示例 3: 列表 ----
+            label({
+                "text" = "═══ 列表绑定 inpc([...]) ═══",
+                "fontSize" = 12,
+                "color" = "#555555"
+            }),
+
+            itemList,
+
+            stackpanel({
+                "orientation" = "horizontal",
+                "spacing" = 10,
+                "children" = [
+                    button({
+                        "text" = "水果列表",
+                        "width" = 100,
+                        "onClick" = () => {
+                            itemData.set(["苹果", "香蕉", "橙子", "葡萄", "西瓜"])
+                        }
+                    }),
+                    button({
+                        "text" = "颜色列表",
+                        "width" = 100,
+                        "onClick" = () => {
+                            itemData.set(["红色", "绿色", "蓝色", "黄色", "紫色"])
+                        }
+                    }),
+                    button({
+                        "text" = "清空",
+                        "width" = 60,
+                        "onClick" = () => {
+                            itemData.set([])
+                        }
+                    })
+                ]
+            }),
+
+            // ---- 示例 4: CheckBox ----
+            label({
+                "text" = "═══ Boolean 绑定 + 事件参数 ═══",
+                "fontSize" = 12,
+                "color" = "#555555"
+            }),
+
+            toggleCheck,
+
+            // 事件参数驱动的状态标签
+            checkStatusLabel,
+
+            stackpanel({
+                "orientation" = "horizontal",
+                "spacing" = 10,
+                "children" = [
+                    button({
+                        "text" = "设为 true",
+                        "width" = 100,
+                        "onClick" = () => {
+                            isChecked.set(true)
+                        }
+                    }),
+                    button({
+                        "text" = "设为 false",
+                        "width" = 100,
+                        "onClick" = () => {
+                            isChecked.set(false)
+                        }
+                    })
+                ]
+            })
+        ]
+    })
+})

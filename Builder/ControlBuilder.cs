@@ -184,7 +184,7 @@ public class ControlBuilder
     }
 
     // ========================================================================
-    // 事件注册
+    // 事件注册（模拟 Vue $event 参数传递）
     // ========================================================================
 
     private void RegisterEvents(Control control, ObjectValue descriptor)
@@ -192,22 +192,26 @@ public class ControlBuilder
         var props = descriptor.Properties;
 
         // onClick → Button.Click / Control.Tapped
+        // 事件参数: { type: "click", name: "controlName" }
         if (props.TryGetValue("onClick", out var onClick)
             && onClick is ICallable clickFunc)
         {
+            var clickArgs = Evt("click",
+                ("name", StringValue.Create(control.Name ?? "")));
+
             switch (control)
             {
                 case Button button:
                     button.Click += async (s, e) =>
                     {
-                        try { await clickFunc.CallAsync(_adapter.Engine!, []); }
+                        try { await clickFunc.CallAsync(_adapter.Engine!, [clickArgs]); }
                         catch (Exception ex) { LogEventError("onClick", ex); }
                     };
                     break;
                 default:
                     control.Tapped += async (s, e) =>
                     {
-                        try { await clickFunc.CallAsync(_adapter.Engine!, []); }
+                        try { await clickFunc.CallAsync(_adapter.Engine!, [clickArgs]); }
                         catch (Exception ex) { LogEventError("onClick", ex); }
                     };
                     break;
@@ -215,6 +219,8 @@ public class ControlBuilder
         }
 
         // onChange → TextBox.TextChanged / CheckBox.IsCheckedChanged
+        // TextBox 参数: { type: "change", value: "当前文本" }
+        // CheckBox 参数: { type: "change", checked: true/false }
         if (props.TryGetValue("onChange", out var onChange)
             && onChange is ICallable changeFunc)
         {
@@ -223,24 +229,34 @@ public class ControlBuilder
                 case TextBox textBox:
                     textBox.TextChanged += async (s, e) =>
                     {
-                        try { await changeFunc.CallAsync(_adapter.Engine!, []); }
+                        try
+                        {
+                            var args = Evt("change",
+                                ("value", StringValue.Create(textBox.Text ?? "")));
+                            await changeFunc.CallAsync(_adapter.Engine!, [args]);
+                        }
                         catch (Exception ex) { LogEventError("onChange", ex); }
                     };
                     break;
                 case CheckBox checkBox:
                     checkBox.IsCheckedChanged += async (s, e) =>
                     {
-                        try { await changeFunc.CallAsync(_adapter.Engine!, []); }
+                        try
+                        {
+                            var args = Evt("change",
+                                ("checked", BoolValue.Create(checkBox.IsChecked ?? false)));
+                            await changeFunc.CallAsync(_adapter.Engine!, [args]);
+                        }
                         catch (Exception ex) { LogEventError("onChange", ex); }
                     };
                     break;
                 default:
-                    // 不支持的 onChange 控件，静默忽略
                     break;
             }
         }
 
         // onSelect → ComboBox.SelectionChanged / ListBox.SelectionChanged
+        // 事件参数: { type: "select", selected: 选中项, index: 索引 }
         if (props.TryGetValue("onSelect", out var onSelect)
             && onSelect is ICallable selectFunc)
         {
@@ -249,19 +265,49 @@ public class ControlBuilder
                 case ComboBox comboBox:
                     comboBox.SelectionChanged += async (s, e) =>
                     {
-                        try { await selectFunc.CallAsync(_adapter.Engine!, []); }
+                        try
+                        {
+                            var selected = comboBox.SelectedItem is string si
+                                ? StringValue.Create(si) : Value.Null;
+                            var index = NumberValueFactory.Create(comboBox.SelectedIndex);
+                            var args = Evt("select",
+                                ("selected", selected),
+                                ("index", index));
+                            await selectFunc.CallAsync(_adapter.Engine!, [args]);
+                        }
                         catch (Exception ex) { LogEventError("onSelect", ex); }
                     };
                     break;
                 case ListBox listBox:
                     listBox.SelectionChanged += async (s, e) =>
                     {
-                        try { await selectFunc.CallAsync(_adapter.Engine!, []); }
+                        try
+                        {
+                            var selected = listBox.SelectedItem is string si
+                                ? StringValue.Create(si) : Value.Null;
+                            var index = listBox.SelectedIndex;
+                            var args = Evt("select",
+                                ("selected", selected),
+                                ("index", NumberValueFactory.Create(index)));
+                            await selectFunc.CallAsync(_adapter.Engine!, [args]);
+                        }
                         catch (Exception ex) { LogEventError("onSelect", ex); }
                     };
                     break;
             }
         }
+    }
+
+    /// <summary>
+    /// 创建事件参数 ObjectValue（模拟 Vue $event）
+    /// 用法: Evt("change", ("value", StringValue), ("checked", BoolValue))
+    /// </summary>
+    private static ObjectValue Evt(string type, params (string key, Value value)[] props)
+    {
+        var dict = new Dictionary<string, Value> { ["type"] = StringValue.Create(type) };
+        foreach (var (key, value) in props)
+            dict[key] = value;
+        return new ObjectValue(dict);
     }
 
     private static void LogEventError(string eventName, Exception ex)
