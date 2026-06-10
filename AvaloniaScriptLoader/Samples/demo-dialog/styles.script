@@ -1,0 +1,21 @@
+// ═══ 全局样式 ═══
+import { style } from "avalonia"
+
+style("bgDark",      {"background" = "#1e1e2e", "color" = "#cdd6f4"})
+style("bgSurface",   {"background" = "#f5f5f9"})
+style("bgCard",      {"background" = "#ffffff", "padding" = 14})
+style("textMuted",   {"color" = "#a0a0b0", "fontSize" = 11})
+style("textSecondary", {"color" = "#6c6c80", "fontSize" = 12})
+style("heading",     {"color" = "#1e1e2e", "fontSize" = 22})
+style("section",     {"color" = "#585878", "fontSize" = 12})
+style("btnPrimary",  {"background" = "#5865f2", "color" = "#ffffff", "fontSize" = 12})
+style("btnGhost",    {"color" = "#5865f2", "fontSize" = 12})
+style("btnDanger",   {"background" = "#ed4245", "color" = "#ffffff", "fontSize" = 12})
+style("badgeSuccess", {"background" = "#d4edda", "color" = "#1b7a30", "fontSize" = 11})
+style("badgeDanger",  {"background" = "#fde2e2", "color" = "#c01020", "fontSize" = 11})
+style("badgeInfo",    {"background" = "#e3f2fd", "color" = "#1976D2", "fontSize" = 11})
+style("avatar",      {"background" = "#e0e0f0", "width" = 44, "height" = 44})
+
+return {
+    "_loaded" = true
+}

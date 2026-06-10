@@ -36,6 +36,10 @@ public static class ControlMeta
         public const string TabControl = "tabcontrol";
         public const string TabItem = "tabitem";
         public const string DataGrid = "datagrid";
+        public const string Dialog = "dialog";
+        public const string DatePicker = "datepicker";
+        public const string Slider = "slider";
+        public const string ProgressBar = "progressbar";
     }
 
     /// <summary>控件属性名前缀（用于识别 setter 方法）</summary>

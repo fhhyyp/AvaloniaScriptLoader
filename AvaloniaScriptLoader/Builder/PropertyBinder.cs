@@ -119,8 +119,17 @@ public class PropertyBinder
                 }
                 break;
 
+            case "value":
+                if (control is Slider slider)
+                {
+                    slider.ValueChanged += (s, e) =>
+                    {
+                        inpc.Set(NumberValueFactory.Create(slider.Value));
+                    };
+                }
+                break;
+
             case "selected":
-                // 索引选择 → 写回 NumberValue
                 if (control is ComboBox combo)
                 {
                     combo.SelectionChanged += (s, e) =>
@@ -201,6 +210,9 @@ public class PropertyBinder
             case "maxHeight":
                 control.MaxHeight = ToDouble(value);
                 break;
+            case "tooltip":
+                ToolTip.SetTip(control, value.AsString());
+                break;
             case "horizontalAlignment":
                 control.HorizontalAlignment = ToHorizontalAlign(value);
                 break;
@@ -273,10 +285,58 @@ public class PropertyBinder
             ApplyTabItemProperty(tabItem, name, value);
         else if (control.GetType().Name == "DataGrid")
             ApplyDataGridByReflection(control, name, value);
+        else if (control is DatePicker dp)
+            ApplyDatePickerProperty(dp, name, value);
+        else if (control is Slider slider)
+            ApplySliderProperty(slider, name, value);
+        else if (control is ProgressBar pb)
+            ApplyProgressBarProperty(pb, name, value);
         else if (control is TextBlock textBlock)
             ApplyLabelProperty(textBlock, name, value);
         else
             ApplyByReflection(control, name, value);
+    }
+
+    // ========================================================================
+    // DatePicker
+    // ========================================================================
+    private static void ApplyDatePickerProperty(DatePicker dp, string name, Value value)
+    {
+        switch (name)
+        {
+            case "selectedDate":
+                if (DateTime.TryParse(value.AsString(), out var dt))
+                    dp.SelectedDate = new DateTimeOffset(dt);
+                break;
+        }
+    }
+
+    // ========================================================================
+    // Slider
+    // ========================================================================
+    private static void ApplySliderProperty(Slider s, string name, Value value)
+    {
+        switch (name)
+        {
+            case "value": s.Value = ToDouble(value); break;
+            case "minimum": s.Minimum = ToDouble(value); break;
+            case "maximum": s.Maximum = ToDouble(value); break;
+            case "tickFrequency": s.TickFrequency = ToDouble(value); break;
+        }
+    }
+
+    // ========================================================================
+    // ProgressBar
+    // ========================================================================
+    private static void ApplyProgressBarProperty(ProgressBar pb, string name, Value value)
+    {
+        switch (name)
+        {
+            case "value": pb.Value = ToDouble(value); break;
+            case "minimum": pb.Minimum = ToDouble(value); break;
+            case "maximum": pb.Maximum = ToDouble(value); break;
+            case "isIndeterminate": pb.IsIndeterminate = value.AsBool(); break;
+        }
     }
 
     // ========================================================================

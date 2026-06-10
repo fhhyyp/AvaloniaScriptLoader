@@ -16,6 +16,7 @@ public class ControlBuilder
 {
     private readonly ScriptEngineAdapter _adapter;
     private readonly PropertyBinder _binder = new();
+    private Panel? _overlayLayer;
 
     public ControlBuilder(ScriptEngineAdapter adapter)
     {
@@ -32,21 +33,29 @@ public class ControlBuilder
 
     public Window? BuildWindow(ObjectValue descriptor)
     {
-        var control = Build(descriptor);
-        Window? result;
-        if (control is Window window)
-            result = window;
-        else
-            result = new Window
-            {
-                Title = "Avalonia Script",
-                Width = 800, Height = 600,
-                Content = control,
-            };
+        // 先创建 overlay 层（dialog 构建时需要引用）
+        _overlayLayer = new Grid();
 
-        // 将主窗口注册到 AvaloniaModule（用于对话框 parent）
-        Modules.AvaloniaModule.MainWindow = result;
-        return result;
+        var control = Build(descriptor);
+        Window window;
+        if (control is Window w)
+            window = w;
+        else
+            window = new Window { Title = "Avalonia Script", Width = 800, Height = 600, Content = control };
+
+        // 根 Grid：第 0 层 = 原始内容，第 1 层 = dialog 浮层
+        var rootGrid = new Grid();
+        var originalContent = window.Content;
+        window.Content = null;
+        if (originalContent is Control c)
+        {
+            rootGrid.Children.Add(c);
+        }
+        rootGrid.Children.Add(_overlayLayer);
+        window.Content = rootGrid;
+
+        Modules.AvaloniaModule.MainWindow = window;
+        return window;
     }
 
     // ========================================================================
@@ -64,6 +73,10 @@ public class ControlBuilder
         // === v-for 响应式列表 ===
         if (type == "vfor")
             return BuildVfor(descriptor);
+
+        // === dialog 浮层组件 ===
+        if (type == "dialog")
+            return BuildDialog(descriptor);
 
         // === 标准控件 ===
         var control = CreateNativeControl(type);
@@ -159,6 +172,9 @@ public class ControlBuilder
         ControlMeta.Types.TabControl   => new TabControl(),
         ControlMeta.Types.TabItem      => new TabItem(),
         ControlMeta.Types.DataGrid    => CreateDataGridReflection(),
+        ControlMeta.Types.DatePicker => new DatePicker(),
+        ControlMeta.Types.Slider     => new Slider(),
+        ControlMeta.Types.ProgressBar => new ProgressBar(),
         _ => throw new ArgumentException($"未知控件类型: '{type}'"),
     };
 
@@ -305,6 +321,19 @@ public class ControlBuilder
                         catch (Exception ex) { LogEventError("onChange", ex); }
                     };
                     break;
+                case Slider slider:
+                    slider.ValueChanged += async (s, e) =>
+                    {
+                        try
+                        {
+                            var args = Evt("change", ("value", NumberValueFactory.Create(slider.Value)));
+                            await changeFunc.CallAsync(engine, [args]);
+                        }
+                        catch (Exception ex) { LogEventError("onChange", ex); }
+                    };
+                    break;
+                case ProgressBar pb2:
+                    break; // ProgressBar 通常不触发 onChange
             }
         }
 
@@ -355,6 +384,20 @@ public class ControlBuilder
                     break;
             }
         }
+
+        // onFocus / onBlur
+        if (props.TryGetValue("onFocus", out var onFocus) && onFocus is ICallable focusFunc)
+            control.GotFocus += async (s, e) =>
+            {
+                try { await focusFunc.CallAsync(engine, [Evt("focus")]); }
+                catch (Exception ex) { LogEventError("onFocus", ex); }
+            };
+        if (props.TryGetValue("onBlur", out var onBlur) && onBlur is ICallable blurFunc)
+            control.LostFocus += async (s, e) =>
+            {
+                try { await blurFunc.CallAsync(engine, [Evt("blur")]); }
+                catch (Exception ex) { LogEventError("onBlur", ex); }
+            };
     }
 
     /// <summary>
@@ -373,6 +416,101 @@ public class ControlBuilder
     {
         System.Diagnostics.Debug.WriteLine(
             $"[Script Event] 事件 '{eventName}' 处理器异常: {ex.Message}");
+    }
+
+    // ========================================================================
+    // dialog 浮层组件
+    // ========================================================================
+
+    private Control BuildDialog(ObjectValue descriptor)
+    {
+        var visibleWrapper = descriptor.Properties["visible"];
+        var inpc = InpcFactory.ExtractInpc(visibleWrapper);
+        var computed = InpcFactory.ExtractComputed(visibleWrapper);
+        Func<bool> getVisible = () => (inpc?.Get().AsBool() ?? computed?.Get().AsBool() ?? false);
+        Action<Action<Value>>? subscribe = inpc != null ? cb => inpc.OnChange(cb)
+            : computed != null ? cb => computed.OnChange(cb) : null;
+
+        var title = descriptor.Properties.TryGetValue("title", out var tv) ? tv.AsString() : "";
+        System.Diagnostics.Debug.WriteLine($"[DIALOG-BUILD] title='{title}' inpc={inpc != null} overlay={_overlayLayer != null}");
+        var width = descriptor.Properties.TryGetValue("width", out var wv) ? PropertyBinder.ToDouble(wv) : 500;
+        var fullscreen = descriptor.Properties.TryGetValue("fullscreen", out var fv) && fv.AsBool();
+        var closable = !descriptor.Properties.TryGetValue("closable", out var cv) || cv.AsBool();
+        var maskClosable = !descriptor.Properties.TryGetValue("maskClosable", out var mv) || mv.AsBool();
+        var maskBg = descriptor.Properties.TryGetValue("maskBackground", out var mb) ? mb.AsString() : "#80000000";
+        var contentDesc = descriptor.Properties.TryGetValue("content", out var ctv) ? ctv as ObjectValue : null;
+        var onClose = descriptor.Properties.TryGetValue("onClose", out var ocv) ? ocv as ICallable : null;
+        var engine = _adapter.Engine!;
+
+        void Close()
+        {
+            if (inpc != null) inpc.Set(BoolValue.False, forceNotify: true);
+            if (computed == null && inpc == null) return;
+            onClose?.CallAsync(engine, []);
+        }
+
+        var mask = new Border { Background = PropertyBinder.ToBrush(StringValue.Create(maskBg)), IsVisible = getVisible() };
+        if (maskClosable) mask.Tapped += (_, _) => Close();
+
+        var card = new Border
+        {
+            Background = Avalonia.Media.Brushes.White,
+            CornerRadius = fullscreen ? new Avalonia.CornerRadius(0) : new Avalonia.CornerRadius(8),
+            MaxWidth = fullscreen ? double.PositiveInfinity : width,
+            MaxHeight = fullscreen ? double.PositiveInfinity : double.PositiveInfinity,
+            HorizontalAlignment = fullscreen ? Avalonia.Layout.HorizontalAlignment.Stretch : Avalonia.Layout.HorizontalAlignment.Center,
+            VerticalAlignment = fullscreen ? Avalonia.Layout.VerticalAlignment.Stretch : Avalonia.Layout.VerticalAlignment.Center,
+            Margin = fullscreen ? new Avalonia.Thickness(0) : new Avalonia.Thickness(20),
+            IsVisible = getVisible(),
+        };
+        var cardStack = new StackPanel { Spacing = 0 };
+
+        var titleBar = new Border { Padding = new Avalonia.Thickness(20, 14), BorderBrush = Avalonia.Media.Brushes.LightGray, BorderThickness = new Avalonia.Thickness(0, 0, 0, 1) };
+        var titleRow = new Grid();
+        titleRow.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
+        titleRow.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
+        titleRow.Children.Add(new TextBlock { Text = title, FontSize = 16, VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center });
+        if (closable)
+        {
+            var cb2 = new Button { Content = "✕", Background = Avalonia.Media.Brushes.Transparent,
+                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right };
+            Grid.SetColumn(cb2, 1);
+            cb2.Click += (_, _) => Close();
+            titleRow.Children.Add(cb2);
+        }
+        titleBar.Child = titleRow;
+        cardStack.Children.Add(titleBar);
+
+        if (contentDesc != null)
+        {
+            var content = BuildInternal(contentDesc);
+            content.Margin = new Avalonia.Thickness(20);
+            cardStack.Children.Add(content);
+        }
+        card.Child = cardStack;
+
+        var overlay = new Grid();
+        overlay.Children.Add(mask);
+        overlay.Children.Add(card);
+        _overlayLayer?.Children.Add(overlay);
+        System.Diagnostics.Debug.WriteLine($"[DIALOG-ADD] '{title}' overlayKids={_overlayLayer?.Children.Count}");
+
+        if (subscribe != null)
+        {
+            subscribe(v =>
+            {
+                var vis = v.AsBool();
+                System.Diagnostics.Debug.WriteLine($"[DIALOG-SUB] '{title}' vis={vis}");
+                Dispatcher.UIThread.Post(() =>
+                {
+                    System.Diagnostics.Debug.WriteLine($"[DIALOG-POST] '{title}' IsVisible={vis}");
+                    mask.IsVisible = vis;
+                    card.IsVisible = vis;
+                });
+            });
+        }
+
+        return new Panel { Height = 0 };
     }
 
     // ========================================================================

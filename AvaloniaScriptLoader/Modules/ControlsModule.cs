@@ -32,6 +32,10 @@ public static class ControlsModule
             ["tabcontrol"]   = ControlFactory.CreateTabControlFactory(),
             ["tabitem"]      = ControlFactory.CreateTabItemFactory(),
             ["datagrid"]     = ControlFactory.CreateDataGridFactory(),
+            ["dialog"]       = ControlFactory.CreateDialogFactory(),
+            ["datepicker"]   = ControlFactory.CreateDatePickerFactory(),
+            ["slider"]       = ControlFactory.CreateSliderFactory(),
+            ["progressbar"]  = ControlFactory.CreateProgressBarFactory(),
         };
 
         return new ObjectValue(properties);

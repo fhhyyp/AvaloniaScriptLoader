@@ -86,6 +86,23 @@ public static class ControlFactory
         new("datagrid", args => BuildDescriptor(ControlMeta.Types.DataGrid, args,
             ["items", "columns"]));
 
+    public static FunctionValue CreateDialogFactory() =>
+        new("dialog", args => BuildDescriptor(ControlMeta.Types.Dialog, args,
+            ["visible", "title", "width", "fullscreen", "closable", "maskClosable",
+             "maskBackground", "destroyOnClose", "content", "onClose"]));
+
+    public static FunctionValue CreateDatePickerFactory() =>
+        new("datepicker", args => BuildDescriptor(ControlMeta.Types.DatePicker, args,
+            ["selectedDate", "minYear", "maxYear"]));
+
+    public static FunctionValue CreateSliderFactory() =>
+        new("slider", args => BuildDescriptor(ControlMeta.Types.Slider, args,
+            ["value", "minimum", "maximum", "tickFrequency"]));
+
+    public static FunctionValue CreateProgressBarFactory() =>
+        new("progressbar", args => BuildDescriptor(ControlMeta.Types.ProgressBar, args,
+            ["value", "minimum", "maximum", "isIndeterminate"]));
+
     // ============================================================================
     // 核心构建逻辑
     // ============================================================================
@@ -123,7 +140,8 @@ public static class ControlFactory
 
         // 复制通用属性（所有控件都支持）
         foreach (var commonProp in new[] { "width", "height", "minWidth", "minHeight", "maxWidth", "maxHeight", "margin", "padding", "visible", "enabled", "name",
-            "horizontalAlignment", "verticalAlignment", "row", "col", "rowSpan", "colSpan", "onKeyDown" })
+            "horizontalAlignment", "verticalAlignment", "row", "col", "rowSpan", "colSpan",
+            "onClick", "onChange", "onSelect", "onKeyDown", "onFocus", "onBlur", "tooltip" })
         {
             if (optProps.TryGetValue(commonProp, out var value))
             {

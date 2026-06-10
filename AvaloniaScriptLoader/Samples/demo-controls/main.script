@@ -1,0 +1,70 @@
+// ═══ 新控件测试: DatePicker + Slider + ProgressBar + Tooltip + onBlur/onFocus ═══
+import { app, inpc, computed } from "avalonia"
+import { window, grid, stackpanel, button, label, textbox, border, scrollviewer, datepicker, slider, progressbar } from "avalonia.controls"
+import { _loaded } from "styles.script"
+
+var sliderValue   = inpc(50, "twoway")
+var progressValue = inpc(0)
+var focusLog      = inpc("—")
+var blurLog       = inpc("—")
+
+// 同步 slider → progress
+var sliderLabel = computed(() => "当前值: " + sliderValue.get())
+
+return window({
+    "title" = "新控件测试",
+    "width" = 650, "height" = 550,
+    "content" = scrollviewer({"content" = stackpanel({
+        "spacing" = 16, "padding" = 24,
+        "children" = [
+            label({"text" = "新控件测试", "class" = "heading"}),
+
+            // ═══ DatePicker ═══
+            label({"text" = "═══ DatePicker ═══", "class" = "section"}),
+            datepicker({"selectedDate" = "2026-01-01", "width" = 200,
+                "tooltip" = "选择日期"}),
+
+            // ═══ Slider ═══
+            label({"text" = "═══ Slider ═══", "class" = "section"}),
+            slider({"value" = sliderValue, "minimum" = 0, "maximum" = 100,
+                "tickFrequency" = 10, "width" = 400, "tooltip" = "拖动滑块"}),
+            label({"text" = sliderLabel, "fontSize" = 14, "color" = "#1976D2"}),
+
+            // Slider 变更时同步 ProgressBar
+            button({"text" = "同步到 ProgressBar", "class" = "btnPrimary",
+                "onClick" = () => { progressValue.set(sliderValue.get()) }}),
+
+            // ═══ ProgressBar ═══
+            label({"text" = "═══ ProgressBar ═══", "class" = "section"}),
+            progressbar({"value" = sliderValue, "minimum" = 0, "maximum" = 100,
+                "width" = 400, "tooltip" = "进度条"}),
+            label({"text" = computed(() => "进度: " + int(sliderValue.get()) + "%"),
+                "fontSize" = 14, "color" = "#1976D2"}),
+
+            // ═══ Tooltip ═══
+            label({"text" = "═══ Tooltip ═══", "class" = "section"}),
+            stackpanel({"orientation" = "horizontal", "spacing" = 10, "children" = [
+                button({"text" = "悬停看提示", "class" = "btnGhost",
+                    "tooltip" = "这是通过 tooltip 属性设置的提示文本"}),
+                label({"text" = "鼠标悬停在按钮上查看 ToolTip", "class" = "textMuted"})
+            ]}),
+
+            // ═══ onFocus / onBlur ═══
+            label({"text" = "═══ onFocus / onBlur ═══", "class" = "section"}),
+            textbox({"placeholder" = "点击获得焦点...", "width" = 300,
+                "tooltip" = "点击后触发 onFocus，离开触发 onBlur",
+                "onFocus" = (e) => { focusLog.set("获得焦点 ✓") },
+                "onBlur"  = (e) => { blurLog.set("失去焦点 ✓") }}),
+
+            stackpanel({"spacing" = 4, "children" = [
+                label({"text" = computed(() => "Focus: " + focusLog.get()),
+                    "fontSize" = 12, "color" = "#2e7d32"}),
+                label({"text" = computed(() => "Blur: " + blurLog.get()),
+                    "fontSize" = 12, "color" = "#c01020"})
+            ]}),
+
+            // ═══ 底部 ═══
+            label({"text" = "onBlur · onFocus · ToolTip · DatePicker · Slider · ProgressBar", "class" = "textMuted"})
+        ]
+    })})
+})

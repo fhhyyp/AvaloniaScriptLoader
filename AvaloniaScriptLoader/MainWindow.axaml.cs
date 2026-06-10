@@ -99,8 +99,8 @@ public partial class MainWindow : Window
         var baseDir = AppContext.BaseDirectory;
         var samplesDir = Path.Combine(baseDir, "Samples");
 
-        // 默认: demo/main.script
-        var demoPath = Path.Combine(samplesDir, "demo", "main.script");
+        // 默认: demo-dialog/main.script
+        var demoPath = Path.Combine(samplesDir, "demo-controls", "main.script");
         if (File.Exists(demoPath))
             return demoPath;
 

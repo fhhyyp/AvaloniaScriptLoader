@@ -1,20 +1,31 @@
 // ═══ 主入口 ═══
-import { vif, vfor, computed, app } from "avalonia"
-import { window, grid, stackpanel, button, label, textbox, border, scrollviewer, tabcontrol, tabitem } from "avalonia.controls"
+import { vif, vfor, computed, app, inpc } from "avalonia"
+import { window, grid, stackpanel, button, label, textbox, border, scrollviewer, tabcontrol, tabitem, dialog } from "avalonia.controls"
 import {  } from "styles.script"
 import { displayUsers, searchQuery, activeTab, stats, doSearch } from "data.script"
 
-// ═══ 对话框 ═══
-let aboutDialog = stackpanel({
-    "spacing" = 14, "padding" = 24,
-    "children" = [
-        label({"text" = "关于用户管理系统", "class" = "heading"}),
-        label({"text" = "基于 AvaloniaScriptLoader 框架", "class" = "textSecondary"}),
-        label({"text" = "模块化架构: styles · data · main", "class" = "textMuted"}),
-        stackpanel({"orientation" = "horizontal", "spacing" = 10, "children" = [
-            button({"text" = "关闭", "class" = "btnPrimary"})
-        ]})
-    ]
+// ═══ 对话框（dialog 浮层组件） ═══
+var showAbout = inpc(false)
+
+dialog({
+    "visible" = showAbout,
+    "title" = "关于用户管理系统",
+    "width" = 450,
+    "closable" = true,
+    "maskClosable" = true,
+    "maskBackground" = "#60000000",
+    "content" = stackpanel({
+        "spacing" = 14, "padding" = 4,
+        "children" = [
+            label({"text" = "基于 AvaloniaScriptLoader 框架", "class" = "textSecondary"}),
+            label({"text" = "模块化架构: styles · data · main", "class" = "textMuted"}),
+            label({"text" = "dialog 浮层组件 — Element-Plus 风格", "class" = "textMuted"}),
+            stackpanel({"orientation" = "horizontal", "spacing" = 10, "children" = [
+                button({"text" = "确定", "class" = "btnPrimary",
+                    "onClick" = () => { showAbout.set(false) }})
+            ]})
+        ]
+    })
 })
 
 // ═══ vfor 用户卡片模板═══
@@ -75,7 +86,7 @@ return window({
                     }}),
                     label({"text" = stats, "class" = "badgeInfo"}),
                     button({"text" = "关于", "class" = "btnGhost",
-                        "onClick" = () => { app.showDialog(aboutDialog, "关于") }})
+                        "onClick" = () => { showAbout.set(true) }})
                 ]
             })}),
 

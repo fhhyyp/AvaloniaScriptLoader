@@ -1,0 +1,167 @@
+// ═══ dialog 浮层组件 — 功能测试 ═══
+import { vif, vfor, computed, app, inpc } from "avalonia"
+import { window, grid, stackpanel, button, label, textbox, border, scrollviewer, dialog } from "avalonia.controls"
+import { _loaded } from "styles.script"
+import { displayUsers, searchQuery, stats, doSearch } from "data.script"
+
+// ═══ 状态 ═══
+var showBasic    = inpc(false)
+var showFull     = inpc(false)
+var showCustom   = inpc(false)
+var showNarrow   = inpc(false)
+var showForm     = inpc(false)
+var showConfirm  = inpc(false)
+var showMulti    = inpc(false)
+var showSub      = inpc(false)
+
+var editName  = inpc("", "twoway")
+var editEmail = inpc("", "twoway")
+var closeLog  = inpc("")
+var confirmResult = inpc("")
+
+// ═══ 主窗口（dialog 必须放在 children 树中才会被构建） ═══
+return window({
+    "title" = "Dialog 组件测试",
+    "width" = 750, "height" = 550,
+    "content" = grid({
+        "rows" = ["auto", "*", "auto"], "cols" = ["*"],
+        "children" = [
+
+            border({"class" = "bgDark", "padding" = 14, "row" = 0, "content" = label({
+                "text" = "dialog 浮层组件 — 功能测试", "fontSize" = 18, "color" = "#cdd6f4"
+            })}),
+
+            scrollviewer({"row" = 1, "content" = stackpanel({
+                "spacing" = 10, "padding" = 20,
+                "children" = [
+                    label({"text" = "点击按钮打开各类 dialog", "class" = "heading"}),
+
+                    stackpanel({"orientation" = "horizontal", "spacing" = 10, "horizontalAlignment" = "left", "children" = [
+                        button({"text" = "基础对话框", "class" = "btnPrimary",
+                            "onClick" = () => { showBasic.set(true) }}),
+                        label({"text" = "visible + maskClosable + onClose", "class" = "textMuted"})
+                    ]}),
+                    stackpanel({"orientation" = "horizontal", "spacing" = 10, "horizontalAlignment" = "left", "children" = [
+                        button({"text" = "全屏对话框", "class" = "btnPrimary",
+                            "onClick" = () => { showFull.set(true) }}),
+                        label({"text" = "fullscreen=true + vfor", "class" = "textMuted"})
+                    ]}),
+                    stackpanel({"orientation" = "horizontal", "spacing" = 10, "horizontalAlignment" = "left", "children" = [
+                        button({"text" = "自定义遮罩", "class" = "btnGhost",
+                            "onClick" = () => { showCustom.set(true) }}),
+                        label({"text" = "maskBackground 绿色", "class" = "textMuted"})
+                    ]}),
+                    stackpanel({"orientation" = "horizontal", "spacing" = 10, "horizontalAlignment" = "left", "children" = [
+                        button({"text" = "窄对话框", "class" = "btnGhost",
+                            "onClick" = () => { showNarrow.set(true) }}),
+                        label({"text" = "width=300", "class" = "textMuted"})
+                    ]}),
+                    stackpanel({"orientation" = "horizontal", "spacing" = 10, "horizontalAlignment" = "left", "children" = [
+                        button({"text" = "表单对话框", "class" = "btnGhost",
+                            "onClick" = () => { showForm.set(true) }}),
+                        label({"text" = "closable=false + twoway", "class" = "textMuted"})
+                    ]}),
+                    stackpanel({"orientation" = "horizontal", "spacing" = 10, "horizontalAlignment" = "left", "children" = [
+                        button({"text" = "确认框", "class" = "btnGhost",
+                            "onClick" = () => { showConfirm.set(true) }}),
+                        label({"text" = "确定/取消 + 返回值", "class" = "textMuted"})
+                    ]}),
+                    stackpanel({"orientation" = "horizontal", "spacing" = 10, "horizontalAlignment" = "left", "children" = [
+                        button({"text" = "嵌套 Dialog", "class" = "btnGhost",
+                            "onClick" = () => { showMulti.set(true) }}),
+                        label({"text" = "多层叠加", "class" = "textMuted"})
+                    ]}),
+
+                    // ═══ 7 个 dialog（在 children 树中，会被 BuildDialog 处理） ═══
+                    dialog({"visible" = showBasic, "title" = "基础对话框", "width" = 450,
+                        "content" = stackpanel({"spacing" = 12, "children" = [
+                            label({"text" = "基础对话框", "fontSize" = 14, "color" = "#333"}),
+                            label({"text" = "点击遮罩或 ✕ 关闭", "class" = "textMuted"}),
+                            button({"text" = "关闭", "class" = "btnPrimary", "horizontalAlignment" = "right",
+                                "onClick" = () => { showBasic.set(false) }})
+                        ]}),
+                        "onClose" = () => { closeLog.set("基础对话框已关闭") }
+                    }),
+                    dialog({"visible" = showFull, "title" = "全屏对话框", "fullscreen" = true,
+                        "content" = stackpanel({"spacing" = 12, "children" = [
+                            label({"text" = "全屏模式", "fontSize" = 16}),
+                            label({"text" = stats, "fontSize" = 14}),
+                            vfor(displayUsers, (u, i) => {
+                                return label({"text" = (i+1)+". "+u.name, "fontSize" = 12})
+                            }),
+                            button({"text" = "关闭", "class" = "btnPrimary", "horizontalAlignment" = "right",
+                                "onClick" = () => { showFull.set(false) }})
+                        ]}),
+                        "onClose" = () => { closeLog.set("全屏已关闭") }
+                    }),
+                    dialog({"visible" = showCustom, "title" = "自定义遮罩", "maskBackground" = "#40008800",
+                        "content" = stackpanel({"spacing" = 12, "children" = [
+                            label({"text" = "绿色半透明遮罩", "fontSize" = 14, "color" = "#2e7d32"}),
+                            button({"text" = "关闭", "class" = "btnPrimary", "horizontalAlignment" = "right",
+                                "onClick" = () => { showCustom.set(false) }})
+                        ]})
+                    }),
+                    dialog({"visible" = showNarrow, "title" = "窄对话框", "width" = 300,
+                        "content" = stackpanel({"spacing" = 12, "children" = [
+                            label({"text" = "width = 300", "fontSize" = 14}),
+                            button({"text" = "关闭", "class" = "btnPrimary", "horizontalAlignment" = "right",
+                                "onClick" = () => { showNarrow.set(false) }})
+                        ]})
+                    }),
+                    dialog({"visible" = showForm, "title" = "表单对话框", "width" = 460,
+                        "closable" = false, "maskClosable" = false,
+                        "content" = stackpanel({"spacing" = 10, "horizontalAlignment" = "right", "children" = [
+                            label({"text" = "姓名:"}),
+                            textbox({"text" = editName, "placeholder" = "输入姓名...", "width" = 300}),
+                            label({"text" = "邮箱:"}),
+                            textbox({"text" = editEmail, "placeholder" = "输入邮箱...", "width" = 300}),
+                            stackpanel({"orientation" = "horizontal", "spacing" = 10, "horizontalAlignment" = "right", "children" = [
+                                button({"text" = "保存", "class" = "btnPrimary", "onClick" = () => {
+                                    app.showMessage("保存: "+editName.get() + 
+                                    "邮箱:" + editEmail.get() , "提交") showForm.set(false) }}),
+                                button({"text" = "取消", "class" = "btnGhost",
+                                    "onClick" = () => { showForm.set(false) }})
+                            ]})
+                        ]}),
+                        "onClose" = () => { closeLog.set("表单已关闭") }
+                    }),
+                    dialog({"visible" = showConfirm, "title" = "确认操作", "width" = 380,
+                        "content" = stackpanel({"spacing" = 16, "children" = [
+                            label({"text" = "确定要执行此操作吗？", "fontSize" = 14}),
+                            label({"text" = "此操作不可撤销", "class" = "textMuted"}),
+                            stackpanel({"orientation" = "horizontal", "spacing" = 10, "horizontalAlignment" = "right", "children" = [
+                                button({"text" = "确定", "class" = "btnPrimary", "onClick" = () => {
+                                    confirmResult.set("点击了确定") showConfirm.set(false) }}),
+                                button({"text" = "取消", "class" = "btnGhost", "onClick" = () => {
+                                    confirmResult.set("点击了取消") showConfirm.set(false) }})
+                            ]})
+                        ]}),
+                        "onClose" = () => { closeLog.set("确认框: "+confirmResult.get()) }
+                    }),
+                    dialog({"visible" = showMulti, "title" = "第一层", "width" = 480,
+                        "content" = stackpanel({"spacing" = 12, "children" = [
+                            label({"text" = "第一层对话框", "fontSize" = 14}),
+                            button({"text" = "打开第二层", "class" = "btnGhost",
+                                "onClick" = () => { showSub.set(true) }}),
+                            button({"text" = "关闭", "class" = "btnPrimary", "horizontalAlignment" = "right",
+                                "onClick" = () => { showMulti.set(false) }})
+                        ]})
+                    }),
+                    dialog({"visible" = showSub, "title" = "第二层（嵌套）", "width" = 340,
+                        "maskBackground" = "#20000000",
+                        "content" = stackpanel({"spacing" = 12, "children" = [
+                            label({"text" = "嵌套的第二层", "fontSize" = 14}),
+                            button({"text" = "关闭", "class" = "btnPrimary", "horizontalAlignment" = "right",
+                                "onClick" = () => { showSub.set(false) }})
+                        ]})
+                    })
+                ]
+            })}),
+
+            border({"class" = "bgSurface", "padding" = 7, "row" = 2, "content" = label({
+                "text" = "dialog | fullscreen | maskBackground | closable | 嵌套 | onClose",
+                "class" = "textMuted"
+            })})
+        ]
+    })
+})
