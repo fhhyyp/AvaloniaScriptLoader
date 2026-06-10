@@ -174,6 +174,12 @@ public class PropertyBinder
             case "height":
                 control.Height = ToDouble(value);
                 break;
+            case "minWidth":
+                control.MinWidth = ToDouble(value);
+                break;
+            case "minHeight":
+                control.MinHeight = ToDouble(value);
+                break;
             case "margin":
                 control.Margin = ToThickness(value);
                 break;
@@ -630,10 +636,41 @@ public class PropertyBinder
 
     public static Thickness ToThickness(Value value)
     {
+        // 单值 → 四边相同
         if (value.IsNumber_Double) return new Thickness(value.As<double>());
         if (value.IsNumber_Int) return new Thickness(value.As<int>());
 
-        // 支持 { top=10, left=5, right=5, bottom=10 } 对象格式
+        // 字符串简写 (CSS 顺序: top right bottom left)
+        // "2" → 四边 2; "2,4" → 上下2 左右4; "2,4,6,8" → 上2 右4 下6 左8
+        if (value.IsString)
+        {
+            var s = value.AsString();
+            if (string.IsNullOrWhiteSpace(s)) return new Thickness(0);
+            var parts = s.Replace(',', ' ').Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var v = parts.Select(p => double.TryParse(p, out var d) ? d : 0).ToArray();
+            return v.Length switch
+            {
+                1 => new Thickness(v[0]),
+                2 => new Thickness(v[1], v[0], v[1], v[0]),       // CSS: v/h → left,top,right,bottom
+                4 => new Thickness(v[3], v[0], v[1], v[2]),       // CSS: t,r,b,l → left,top,right,bottom
+                _ => new Thickness(0)
+            };
+        }
+
+        // 数组简写: [2] / [2,4] / [2,4,6,8]（CSS 顺序）
+        if (value.IsArray && value is ArrayValue arr)
+        {
+            var v = arr.Elements.Select(e => e.IsNumber ? ToDouble(e) : 0).ToArray();
+            return v.Length switch
+            {
+                1 => new Thickness(v[0]),
+                2 => new Thickness(v[1], v[0], v[1], v[0]),
+                4 => new Thickness(v[3], v[0], v[1], v[2]),
+                _ => new Thickness(0)
+            };
+        }
+
+        // 对象格式: { top=10, left=5, right=5, bottom=10 }
         if (value is ObjectValue obj)
         {
             var p = obj.Properties;
