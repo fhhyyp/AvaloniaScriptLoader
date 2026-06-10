@@ -1,24 +1,48 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using ScriptLang;
 using ScriptLang.Runtime;
+using AvaloniaScriptLoader.Model;
 using AvaloniaScriptLoader.Modules;
 using AvaloniaScriptLoader.Wrapper;
 
 namespace AvaloniaScriptLoader;
 
 /// <summary>
+/// 脚本执行结果
+/// </summary>
+public class ScriptResult
+{
+    public bool Success { get; init; }
+    public ObjectValue? RootDescriptor { get; init; }
+    public string? ErrorMessage { get; init; }
+    public string? ErrorDetail { get; init; }
+    public long ExecutionTimeMs { get; init; }
+
+    public static ScriptResult Ok(ObjectValue root, long ms) => new()
+    {
+        Success = true, RootDescriptor = root, ExecutionTimeMs = ms
+    };
+
+    public static ScriptResult Fail(string message, string? detail = null) => new()
+    {
+        Success = false, ErrorMessage = message, ErrorDetail = detail
+    };
+}
+
+/// <summary>
 /// 脚本引擎适配器 — 管理 ScriptEngine 生命周期、模块注册、脚本执行
-/// 参照 ExcelScriptLoader.ScriptEngineAdapter 的集成模式
 /// </summary>
 public class ScriptEngineAdapter : IDisposable
 {
     private ScriptEngine? _engine;
     private bool _disposed;
 
-    /// <summary>控件注册表（用于 app.find 和 setter 回调）</summary>
+    /// <summary>脚本执行超时（秒），0 表示无限制</summary>
+    public int ExecutionTimeoutSeconds { get; set; } = 30;
+
     private readonly ConcurrentDictionary<string, ControlWrapper> _controlRegistry = new();
 
-    /// <summary>引擎实例</summary>
     public ScriptEngine? Engine => _engine;
 
     /// <summary>
@@ -28,86 +52,137 @@ public class ScriptEngineAdapter : IDisposable
     {
         _engine = new ScriptEngine();
         _controlRegistry.Clear();
-
-        // 注册内置模块
         RegisterBuiltinModules();
+        Log.Info("ScriptEngineAdapter initialized");
     }
 
     /// <summary>
-    /// 执行脚本代码，返回根 ObjectValue 描述符
+    /// 执行脚本代码，返回结构化结果（统一异常边界）
     /// </summary>
-    /// <param name="scriptCode">脚本源代码</param>
-    /// <param name="sourceName">源名称（用于错误报告）</param>
-    /// <returns>脚本返回的根描述符（通常是 Window ObjectValue）</returns>
-    public async Task<ObjectValue> ExecuteAsync(string scriptCode, string sourceName)
+    public async Task<ScriptResult> ExecuteAsync(string scriptCode, string sourceName)
     {
-        if (_engine == null)
-            throw new InvalidOperationException("引擎未初始化，请先调用 Initialize()");
+        var sw = Stopwatch.StartNew();
 
-        // 清空上次的编译缓存和控件注册表
-        _engine.ClearCache();
-        _controlRegistry.Clear();
+        try
+        {
+            if (_engine == null)
+                return ScriptResult.Fail("引擎未初始化，请先调用 Initialize()");
 
-        // 刷新内置模块（每次执行重新注册以获取最新状态）
-        RegisterBuiltinModules();
+            // 清理控件注册表（不重置 GlobalSlotRegistry — 保持槽位索引一致）
+            _controlRegistry.Clear();
+            RegisterBuiltinModules();
 
-        // 编译并执行
-        var task = _engine.CreateTaskFromSource(scriptCode, sourceName);
-        var result = await task.RunAsync();
+            // 编译并执行（带超时保护）
+            ScriptTask task;
+            try
+            {
+                task = _engine.CreateTaskFromSource(scriptCode, sourceName);
+            }
+            catch (Exception ex)
+            {
+                sw.Stop();
+                return ScriptResult.Fail(
+                    $"脚本编译错误 ({sourceName})", ex.Message);
+            }
 
-        // 脚本最后一个表达式是返回值
-        if (result is ObjectValue obj)
-            return obj;
+            Value result;
+            if (ExecutionTimeoutSeconds > 0)
+            {
+                var timeoutTask = Task.Delay(TimeSpan.FromSeconds(ExecutionTimeoutSeconds));
+                var executeTask = task.RunAsync();
+                var completed = await Task.WhenAny(executeTask, timeoutTask);
 
-        throw new InvalidOperationException(
-            $"脚本必须返回一个控件描述符（ObjectValue），但返回了: {result?.GetType().Name ?? "null"}");
+                if (completed == timeoutTask)
+                {
+                    task.Cancel();
+                    sw.Stop();
+                    return ScriptResult.Fail(
+                        $"脚本执行超时（>{ExecutionTimeoutSeconds}秒）", sourceName);
+                }
+                result = await executeTask;
+            }
+            else
+            {
+                result = await task.RunAsync();
+            }
+
+            sw.Stop();
+
+            if (result is ObjectValue obj)
+                return ScriptResult.Ok(obj, sw.ElapsedMilliseconds);
+
+            return ScriptResult.Fail(
+                $"脚本必须返回控件描述符，但返回了: {result?.GetType().Name ?? "null"}",
+                $"脚本最后一条表达式应为 window({{...}}) 或控件描述符");
+        }
+        catch (Exception ex)
+        {
+            sw.Stop();
+            Log.Error($"ExecuteAsync failed ({sourceName}): {ex.Message}");
+
+            return ScriptResult.Fail(
+                $"脚本执行异常 ({sourceName})",
+                ex.InnerException?.Message ?? ex.Message);
+        }
     }
 
-    /// <summary>
-    /// 注册命名控件（用于 app.find）
-    /// </summary>
+    // ========================================================================
+    // 控件注册表
+    // ========================================================================
+
     public void RegisterControl(string name, ControlWrapper wrapper)
     {
         _controlRegistry[name] = wrapper;
     }
 
-    /// <summary>
-    /// 按名称查找控件
-    /// </summary>
     public ControlWrapper? FindControl(string name)
     {
         _controlRegistry.TryGetValue(name, out var wrapper);
         return wrapper;
     }
 
-    // ==================== 内部方法 ====================
-
     /// <summary>
-    /// 注册所有内置模块到 ImportResolver
+    /// 注销并清理命名控件（移除时调用）
     /// </summary>
+    public void UnregisterControl(string name)
+    {
+        if (_controlRegistry.TryRemove(name, out var wrapper))
+        {
+            wrapper.Dispose();
+        }
+    }
+
+    // ========================================================================
+    // 内部
+    // ========================================================================
+
     private void RegisterBuiltinModules()
     {
         if (_engine == null) return;
 
-        // 注册 "avalonia" 系统模块
-        var avaloniaExports = AvaloniaModule.CreateExports(this);
-        _engine.ImportResolver.RegisterBuiltinModule("avalonia", avaloniaExports);
-
-        // 注册 "avalonia.controls" 控件模块
-        var controlsExports = ControlsModule.CreateExports();
-        _engine.ImportResolver.RegisterBuiltinModule("avalonia.controls", controlsExports);
+        _engine.ImportResolver.RegisterBuiltinModule("avalonia",
+            AvaloniaModule.CreateExports(this));
+        _engine.ImportResolver.RegisterBuiltinModule("avalonia.controls",
+            ControlsModule.CreateExports());
     }
 
-    /// <summary>
-    /// 释放所有资源
-    /// </summary>
+    // ========================================================================
+    // IDisposable
+    // ========================================================================
+
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
 
-        _engine?.ClearCache();
+        // 清理所有注册的控件
+        foreach (var kv in _controlRegistry)
+            kv.Value.Dispose();
         _controlRegistry.Clear();
+
+        _engine?.ClearCache();
         _engine = null;
+
+        Log.Info("ScriptEngineAdapter disposed");
     }
 }

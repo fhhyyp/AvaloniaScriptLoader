@@ -3,38 +3,30 @@ using ScriptLang.Runtime;
 namespace AvaloniaScriptLoader.Model;
 
 /// <summary>
-/// 计算属性 — 模拟 Vue computed()
+/// 计算属性 — 模拟 Vue computed()（线程安全）
 ///
 /// 自动追踪依赖（InpcValue + ComputedValue），依赖变更时自动重算并通知订阅者。
-/// 支持嵌套 ComputedValue（computed 内部读取另一个 computed）。
-///
-/// 脚本用法:
-///   var fullName = computed(() => {
-///       return firstName.get() + lastName.get()
-///   })
-///   var greeting = computed(() => {
-///       return "你好 " + fullName.get()  // 嵌套 computed 依赖 ✅
-///   })
+/// 支持嵌套 ComputedValue。
 /// </summary>
-public class ComputedValue
+public class ComputedValue : IDisposable
 {
     private readonly Func<Value> _compute;
     private Value _cachedValue = Value.Null;
     private bool _dirty = true;
     private bool _firstRun = true;
+    private bool _disposed;
 
-    // UI / PropertyBinder 订阅者
+    private readonly object _lock = new();
+
+    // UI 订阅者（lock 保护）
     private readonly List<Action<Value>> _subscribers = [];
 
-    // 依赖：当前追踪到的 InpcValue
+    // 依赖追踪（lock 保护）
     private readonly HashSet<InpcValue> _inpcDeps = [];
-    // 依赖：当前追踪到的 ComputedValue（支持嵌套 computed）
     private readonly HashSet<ComputedValue> _computedDeps = [];
-    // 反向依赖：依赖此 ComputedValue 的其他 ComputedValue
     private readonly HashSet<ComputedValue> _dependents = [];
 
-    /// <summary>依赖数量（调试用）</summary>
-    public int DependencyCount => _inpcDeps.Count + _computedDeps.Count;
+    public int DependencyCount { get { lock (_lock) return _inpcDeps.Count + _computedDeps.Count; } }
 
     public ComputedValue(Func<Value> compute)
     {
@@ -42,15 +34,11 @@ public class ComputedValue
     }
 
     /// <summary>
-    /// 获取当前计算值。首次调用或 dirty 时触发求值。
-    /// 自动注册到 ReactiveTracker（若有正在求值的父 ComputedValue）。
+    /// 获取当前计算值。自动注册到 ReactiveTracker。
     /// </summary>
     public Value Get()
     {
-        // === 关键修复：ComputedValue → ComputedValue 依赖追踪 ===
-        // 若当前有正在求值的 ComputedValue（ReactiveTracker.Current），
-        // 将 this 注册为该父 ComputedValue 的依赖。
-        // 这样当 this 变更时，父 ComputedValue 会被自动 Invalidated。
+        if (_disposed) return Value.Null;
         ReactiveTracker.Current?.AddComputedDependency(this);
 
         if (_dirty)
@@ -58,81 +46,119 @@ public class ComputedValue
         return _cachedValue;
     }
 
-    /// <summary>
-    /// 注册变更回调（由 PropertyBinder 调用）
-    /// </summary>
     public void OnChange(Action<Value> callback)
     {
-        _subscribers.Add(callback);
+        if (_disposed) return;
+        lock (_lock) { _subscribers.Add(callback); }
         if (_firstRun)
         {
             _firstRun = false;
-            Get(); // 触发首次求值，建立依赖图
+            Get();
         }
     }
 
-    /// <summary>
-    /// 移除变更回调
-    /// </summary>
     public void RemoveCallback(Action<Value> callback)
     {
-        _subscribers.Remove(callback);
+        lock (_lock) { _subscribers.Remove(callback); }
     }
 
     // ========================================================================
-    // 依赖管理（内部，由 ReactiveTracker 驱动）
+    // 依赖管理
     // ========================================================================
 
-    /// <summary>InpcValue.Get() 调用此方法注册依赖</summary>
     internal void AddInpcDependency(InpcValue inpc)
     {
-        _inpcDeps.Add(inpc);
+        if (_disposed) return;
+        lock (_lock) { _inpcDeps.Add(inpc); }
         inpc.AddDependent(this);
     }
 
-    /// <summary>ComputedValue.Get() 调用此方法注册 Computed→Computed 依赖</summary>
     internal void AddComputedDependency(ComputedValue cv)
     {
-        if (cv == this) return; // 防止自依赖
-        _computedDeps.Add(cv);
-        cv._dependents.Add(this);
+        if (_disposed || cv == this) return;
+        lock (_lock) { _computedDeps.Add(cv); }
+        lock (cv._lock) { cv._dependents.Add(this); }
     }
 
-    /// <summary>InpcValue.Set() / ComputedValue.Invalidate() 调用</summary>
+    internal void RemoveInpcDependency(InpcValue inpc)
+    {
+        lock (_lock) { _inpcDeps.Remove(inpc); }
+    }
+
     internal void Invalidate()
     {
-        if (_dirty) return;
+        if (_disposed || _dirty) return;
         _dirty = true;
 
-        Recompute();          // 重新求值
-        NotifySubscribers();  // 通知 UI（PropertyBinder）
+        Recompute();
 
-        // 链式无效化：通知依赖此 ComputedValue 的其他 ComputedValue
-        foreach (var dep in _dependents.ToArray())
-            dep.Invalidate();
+        // 通知 UI 订阅者
+        Action<Value>[] snapshot;
+        lock (_lock) { snapshot = _subscribers.ToArray(); }
+        foreach (var cb in snapshot)
+        {
+            try { cb(_cachedValue); }
+            catch (Exception ex) { Log.Error($"[ComputedValue] Notify error: {ex.Message}"); }
+        }
+
+        // 链式无效化依赖的 ComputedValue
+        ComputedValue[] depSnapshot;
+        lock (_lock) { depSnapshot = _dependents.ToArray(); }
+        foreach (var dep in depSnapshot)
+        {
+            try { dep.Invalidate(); }
+            catch (Exception ex) { Log.Error($"[ComputedValue] Chain error: {ex.Message}"); }
+        }
     }
 
     // ========================================================================
-    // 内部方法
+    // IDisposable
     // ========================================================================
 
-    /// <summary>
-    /// 重新求值：清空旧依赖 → Push tracker → 运行 compute → 收集新依赖 → Pop tracker
-    /// </summary>
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+
+        InpcValue[] inpcDeps;
+        ComputedValue[] compDeps;
+        lock (_lock)
+        {
+            inpcDeps = _inpcDeps.ToArray();
+            compDeps = _computedDeps.ToArray();
+            _inpcDeps.Clear();
+            _computedDeps.Clear();
+            _subscribers.Clear();
+            _dependents.Clear();
+        }
+
+        foreach (var d in inpcDeps) d.RemoveDependent(this);
+        foreach (var d in compDeps) lock (d._lock) { d._dependents.Remove(this); }
+
+        Log.Debug($"[ComputedValue] Disposed: {inpcDeps.Length} inpc + {compDeps.Length} computed deps");
+    }
+
+    // ========================================================================
+    // 内部
+    // ========================================================================
+
     private void Recompute()
     {
-        // 1. 清空旧依赖关系
-        foreach (var dep in _inpcDeps)
-            dep.RemoveDependent(this);
-        _inpcDeps.Clear();
+        // 清空旧依赖
+        InpcValue[] oldInpc;
+        ComputedValue[] oldComp;
+        lock (_lock)
+        {
+            oldInpc = _inpcDeps.ToArray();
+            oldComp = _computedDeps.ToArray();
+            _inpcDeps.Clear();
+            _computedDeps.Clear();
+        }
+        foreach (var d in oldInpc) d.RemoveDependent(this);
+        foreach (var d in oldComp) lock (d._lock) { d._dependents.Remove(this); }
 
-        foreach (var dep in _computedDeps)
-            dep._dependents.Remove(this);
-        _computedDeps.Clear();
-
-        // 2. 将自己推入追踪栈（使 InpcValue.Get() / ComputedValue.Get() 能发现当前求值上下文）
+        // 求值（追踪栈）
         ReactiveTracker.Push(this);
-
         try
         {
             _cachedValue = _compute();
@@ -140,31 +166,12 @@ public class ComputedValue
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine(
-                $"[ComputedValue] 求值异常: {ex.Message}");
-            _cachedValue = Value.Null;
+            Log.Error($"[ComputedValue] Evaluate error: {ex.Message}");
+            // 保持旧值（stale-while-revalidate）
         }
         finally
         {
-            // 3. 从追踪栈弹出
             ReactiveTracker.Pop();
         }
     }
-
-    private void NotifySubscribers()
-    {
-        var snapshot = _subscribers.ToArray();
-        foreach (var cb in snapshot)
-        {
-            try { cb(_cachedValue); }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine(
-                    $"[ComputedValue] 通知异常: {ex.Message}");
-            }
-        }
-    }
-
-    public override string ToString()
-        => $"ComputedValue(inpcDeps={_inpcDeps.Count}, computedDeps={_computedDeps.Count}, dirty={_dirty})";
 }

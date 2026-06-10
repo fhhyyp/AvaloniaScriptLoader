@@ -190,40 +190,35 @@ public class ControlBuilder
 
     private void RegisterEvents(Control control, ObjectValue descriptor)
     {
+        // 在 Build 时捕获引擎引用（窗口关闭后 _adapter.Engine 可能被置 null）
+        var engine = _adapter.Engine!;
         var props = descriptor.Properties;
 
-        // onClick → Button.Click / Control.Tapped
-        // 事件参数: { type: "click", name: "controlName" }
-        if (props.TryGetValue("onClick", out var onClick)
-            && onClick is ICallable clickFunc)
+        // onClick
+        if (props.TryGetValue("onClick", out var onClick) && onClick is ICallable clickFunc)
         {
-            var clickArgs = Evt("click",
-                ("name", StringValue.Create(control.Name ?? "")));
-
+            var clickArgs = Evt("click", ("name", StringValue.Create(control.Name ?? "")));
             switch (control)
             {
                 case Button button:
                     button.Click += async (s, e) =>
                     {
-                        try { await clickFunc.CallAsync(_adapter.Engine!, [clickArgs]); }
+                        try { await clickFunc.CallAsync(engine, [clickArgs]); }
                         catch (Exception ex) { LogEventError("onClick", ex); }
                     };
                     break;
                 default:
                     control.Tapped += async (s, e) =>
                     {
-                        try { await clickFunc.CallAsync(_adapter.Engine!, [clickArgs]); }
+                        try { await clickFunc.CallAsync(engine, [clickArgs]); }
                         catch (Exception ex) { LogEventError("onClick", ex); }
                     };
                     break;
             }
         }
 
-        // onChange → TextBox.TextChanged / CheckBox.IsCheckedChanged
-        // TextBox 参数: { type: "change", value: "当前文本" }
-        // CheckBox 参数: { type: "change", checked: true/false }
-        if (props.TryGetValue("onChange", out var onChange)
-            && onChange is ICallable changeFunc)
+        // onChange
+        if (props.TryGetValue("onChange", out var onChange) && onChange is ICallable changeFunc)
         {
             switch (control)
             {
@@ -232,9 +227,8 @@ public class ControlBuilder
                     {
                         try
                         {
-                            var args = Evt("change",
-                                ("value", StringValue.Create(textBox.Text ?? "")));
-                            await changeFunc.CallAsync(_adapter.Engine!, [args]);
+                            var args = Evt("change", ("value", StringValue.Create(textBox.Text ?? "")));
+                            await changeFunc.CallAsync(engine, [args]);
                         }
                         catch (Exception ex) { LogEventError("onChange", ex); }
                     };
@@ -244,22 +238,17 @@ public class ControlBuilder
                     {
                         try
                         {
-                            var args = Evt("change",
-                                ("checked", BoolValue.Create(checkBox.IsChecked ?? false)));
-                            await changeFunc.CallAsync(_adapter.Engine!, [args]);
+                            var args = Evt("change", ("checked", BoolValue.Create(checkBox.IsChecked ?? false)));
+                            await changeFunc.CallAsync(engine, [args]);
                         }
                         catch (Exception ex) { LogEventError("onChange", ex); }
                     };
                     break;
-                default:
-                    break;
             }
         }
 
-        // onSelect → ComboBox.SelectionChanged / ListBox.SelectionChanged
-        // 事件参数: { type: "select", selected: 选中项, index: 索引 }
-        if (props.TryGetValue("onSelect", out var onSelect)
-            && onSelect is ICallable selectFunc)
+        // onSelect
+        if (props.TryGetValue("onSelect", out var onSelect) && onSelect is ICallable selectFunc)
         {
             switch (control)
             {
@@ -268,13 +257,9 @@ public class ControlBuilder
                     {
                         try
                         {
-                            var selected = comboBox.SelectedItem is string si
-                                ? StringValue.Create(si) : Value.Null;
-                            var index = NumberValueFactory.Create(comboBox.SelectedIndex);
-                            var args = Evt("select",
-                                ("selected", selected),
-                                ("index", index));
-                            await selectFunc.CallAsync(_adapter.Engine!, [args]);
+                            var selected = comboBox.SelectedItem is string si ? StringValue.Create(si) : Value.Null;
+                            var args = Evt("select", ("selected", selected), ("index", NumberValueFactory.Create(comboBox.SelectedIndex)));
+                            await selectFunc.CallAsync(engine, [args]);
                         }
                         catch (Exception ex) { LogEventError("onSelect", ex); }
                     };
@@ -284,13 +269,9 @@ public class ControlBuilder
                     {
                         try
                         {
-                            var selected = listBox.SelectedItem is string si
-                                ? StringValue.Create(si) : Value.Null;
-                            var index = listBox.SelectedIndex;
-                            var args = Evt("select",
-                                ("selected", selected),
-                                ("index", NumberValueFactory.Create(index)));
-                            await selectFunc.CallAsync(_adapter.Engine!, [args]);
+                            var selected = listBox.SelectedItem is string si ? StringValue.Create(si) : Value.Null;
+                            var args = Evt("select", ("selected", selected), ("index", NumberValueFactory.Create(listBox.SelectedIndex)));
+                            await selectFunc.CallAsync(engine, [args]);
                         }
                         catch (Exception ex) { LogEventError("onSelect", ex); }
                     };
@@ -323,7 +304,6 @@ public class ControlBuilder
 
     /// <summary>
     /// 构建 vfor 列表渲染。
-    /// 根据数组的每个元素调用模板函数生成子控件，数组变更时全量重建。
     /// </summary>
     private Control BuildVfor(ObjectValue descriptor)
     {
@@ -331,14 +311,17 @@ public class ControlBuilder
         var templateValue = descriptor.Properties["__template"];
         var template = templateValue as ICallable;
 
-        // 获取数组 InpcValue
         var inpc = InpcFactory.ExtractInpc(arrayWrapper);
         if (inpc == null || template == null)
-            return new Panel(); // 无效配置，返回空占位
+            return new Panel();
 
-        var placeholder = new StackPanel(); // 用 StackPanel 容纳列表项
+        // 重新注册内置模块到 GlobalSlotRegistry（确保模板 Lambda 内的 import 变量可用）
+        // 模板运行在新 VM 中，需要 GlobalSlotRegistry 有最新值
+        var engine = _adapter.Engine!;
+        EnsureGlobalSlotsForTemplate(engine);
 
-        // 重建所有子控件
+        var placeholder = new StackPanel();
+
         void RebuildChildren()
         {
             var arr = inpc.Get();
@@ -347,7 +330,6 @@ public class ControlBuilder
             Dispatcher.UIThread.Post(() =>
             {
                 placeholder.Children.Clear();
-                var engine = _adapter.Engine!;
 
                 for (int i = 0; i < av.Elements.Count; i++)
                 {
@@ -356,7 +338,6 @@ public class ControlBuilder
 
                     try
                     {
-                        // 调用模板函数 (item, index) => element
                         var task = template.CallAsync(engine, [item, index]);
                         var result = task.GetAwaiter().GetResult();
 
@@ -368,8 +349,7 @@ public class ControlBuilder
                     }
                     catch (Exception ex)
                     {
-                        System.Diagnostics.Debug.WriteLine(
-                            $"[vfor] 模板调用失败 index={i}: {ex.Message}");
+                        Log.Warn($"[vfor] template failed index={i}: {ex.Message}");
                     }
                 }
             });
@@ -382,6 +362,40 @@ public class ControlBuilder
         inpc.OnChange(_ => RebuildChildren());
 
         return placeholder;
+    }
+
+    /// <summary>
+    /// 确保 vfor 模板 Lambda 中的 import 变量在 GlobalSlotRegistry 有正确的值。
+    /// 模板运行在新 VM 中，需要全局槽位值可用。
+    /// 注意：只 SetValue，不 Register — 槽位索引在编译时已固定，重新注册会改变索引。
+    /// </summary>
+    private static void EnsureGlobalSlotsForTemplate(ScriptLang.ScriptEngine engine)
+    {
+        var controlsExports = Modules.ControlsModule.CreateExports();
+        var avaloniaExports = Modules.AvaloniaModule.CreateExports(null!);
+
+        // 更新 ImportResolver 的模块缓存（确保后续 import 能找到）
+        engine.ImportResolver.RegisterBuiltinModule("avalonia", avaloniaExports);
+        engine.ImportResolver.RegisterBuiltinModule("avalonia.controls", controlsExports);
+
+        // 仅设置值（不重新注册，保持编译时分配的槽位索引不变）
+        void SetIfExists(string name, Value value)
+        {
+            try
+            {
+                int slot = ScriptLang.Runtime.ByteCode.GlobalSlotRegistry.GetSlot(name);
+                ScriptLang.Runtime.ByteCode.GlobalSlotRegistry.SetValue(slot, value);
+            }
+            catch (KeyNotFoundException)
+            {
+                // 编译时未分配此全局变量的槽位，忽略
+            }
+        }
+
+        foreach (var kv in controlsExports.Properties)
+            SetIfExists(kv.Key, kv.Value);
+        foreach (var kv in avaloniaExports.Properties)
+            SetIfExists(kv.Key, kv.Value);
     }
 
     // ========================================================================

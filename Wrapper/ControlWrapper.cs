@@ -7,19 +7,13 @@ using AvaloniaScriptLoader.Model;
 namespace AvaloniaScriptLoader.Wrapper;
 
 /// <summary>
-/// 控件包装器 — 两阶段 setter 激活机制
-///
-/// Phase 1（脚本执行时）：
-///   - 描述符中的 setter 为 DeferredSetter（仅更新描述符数据）
-///
-/// Phase 2（Build 后调用 Activate()）：
-///   - 注入实际 Control 引用
-///   - 将所有 setter 替换为 RealSetter（更新描述符 + Dispatcher 调度更新 UI）
+/// 控件包装器 — 两阶段 setter 激活机制（IDisposable）
 /// </summary>
-public class ControlWrapper
+public class ControlWrapper : IDisposable
 {
     private readonly Control _control;
     private readonly ObjectValue _descriptor;
+    private bool _disposed;
 
     /// <summary>待处理的属性变更队列（Activate 前累积）</summary>
     private readonly Queue<(string propertyName, Value value)> _pendingChanges = new();
@@ -103,21 +97,34 @@ public class ControlWrapper
     /// </summary>
     private FunctionValue CreateRealSetter(string setterName, string propertyName)
     {
-        // 捕获 this 引用
         var wrapper = this;
-
         return new FunctionValue(setterName, engineArgs =>
         {
+            if (wrapper._disposed) return;
             var value = engineArgs.FirstOrDefault() ?? Value.Null;
             wrapper.SetProperty(propertyName, value);
         });
     }
 
-    /// <summary>
-    /// 记录 pending 变更（由 DeferredSetter 在 Build 前调用）
-    /// </summary>
     internal void EnqueuePendingChange(string propertyName, Value value)
     {
         _pendingChanges.Enqueue((propertyName, value));
+    }
+
+    // ========================================================================
+    // IDisposable
+    // ========================================================================
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _pendingChanges.Clear();
+
+        // 从描述符清除控件引用
+        _descriptor.Properties.Remove(ControlMeta.ControlKey);
+        _descriptor.Properties.Remove(ControlMeta.WrapperKey);
+
+        Log.Debug($"[ControlWrapper] Disposed: {_control.GetType().Name}");
     }
 }

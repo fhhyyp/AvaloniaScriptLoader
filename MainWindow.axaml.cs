@@ -14,6 +14,17 @@ public partial class MainWindow : Window
         Loaded += OnLoaded;
     }
 
+    private Window? _scriptWindow;
+
+    protected override void OnClosed(EventArgs e)
+    {
+        // 不在 Loader 窗口关闭时 dispose adapter — 脚本窗口可能还在使用
+        // 只有当脚本窗口也关闭时才清理
+        if (_scriptWindow == null)
+            _adapter?.Dispose();
+        base.OnClosed(e);
+    }
+
     private async void OnLoaded(object? sender, EventArgs e)
     {
         try
@@ -31,22 +42,34 @@ public partial class MainWindow : Window
             var scriptCode = await File.ReadAllTextAsync(scriptPath);
             var scriptName = Path.GetFileName(scriptPath);
 
-            // 3. 执行脚本（后台线程） → 获取 ObjectValue 树
-            var rootDescriptor = await Task.Run(() =>
+            // 3. 执行脚本（后台线程，带超时保护）
+            var scriptResult = await Task.Run(() =>
                 _adapter.ExecuteAsync(scriptCode, scriptName));
 
-            StatusText.Text = "正在构建 UI...";
+            if (!scriptResult.Success)
+            {
+                StatusText.Text = "脚本执行失败";
+                ErrorText.Text = scriptResult.ErrorMessage + "\n\n" + scriptResult.ErrorDetail;
+                return;
+            }
+
+            StatusText.Text = $"正在构建 UI... (耗时 {scriptResult.ExecutionTimeMs}ms)";
 
             // 4. 在 UI 线程构建控件树
             var controlBuilder = new ControlBuilder(_adapter);
-            var scriptWindow = controlBuilder.BuildWindow(rootDescriptor);
+            var scriptWindow = controlBuilder.BuildWindow(scriptResult.RootDescriptor!);
 
             if (scriptWindow != null)
             {
-                // 5. 显示脚本生成的窗口
-                scriptWindow.Show();
+                _scriptWindow = scriptWindow;
 
-                // 关闭启动窗口
+                // 脚本窗口关闭时清理 adapter
+                scriptWindow.Closed += (s, args) =>
+                {
+                    _adapter?.Dispose();
+                };
+
+                scriptWindow.Show();
                 Close();
             }
         }
