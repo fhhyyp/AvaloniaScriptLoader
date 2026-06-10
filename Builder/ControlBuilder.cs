@@ -32,16 +32,20 @@ public class ControlBuilder
     public Window? BuildWindow(ObjectValue descriptor)
     {
         var control = Build(descriptor);
-        if (control is Window window) return window;
+        Window? result;
+        if (control is Window window)
+            result = window;
+        else
+            result = new Window
+            {
+                Title = "Avalonia Script",
+                Width = 800, Height = 600,
+                Content = control,
+            };
 
-        var wrapperWindow = new Window
-        {
-            Title = "Avalonia Script",
-            Width = 800,
-            Height = 600,
-            Content = control,
-        };
-        return wrapperWindow;
+        // 将主窗口注册到 AvaloniaModule（用于对话框 parent）
+        Modules.AvaloniaModule.MainWindow = result;
+        return result;
     }
 
     // ========================================================================
@@ -112,15 +116,20 @@ public class ControlBuilder
 
     private static Control CreateNativeControl(string type) => type switch
     {
-        ControlMeta.Types.Window     => new Window(),
-        ControlMeta.Types.Button     => new Button(),
-        ControlMeta.Types.Label      => new TextBlock(),
-        ControlMeta.Types.TextBox    => new TextBox(),
-        ControlMeta.Types.CheckBox   => new CheckBox(),
-        ControlMeta.Types.ComboBox   => new ComboBox(),
-        ControlMeta.Types.ListBox    => new ListBox(),
-        ControlMeta.Types.StackPanel => new StackPanel(),
-        ControlMeta.Types.Grid       => new Grid(),
+        ControlMeta.Types.Window       => new Window(),
+        ControlMeta.Types.Button       => new Button(),
+        ControlMeta.Types.Label        => new TextBlock(),
+        ControlMeta.Types.TextBox      => new TextBox(),
+        ControlMeta.Types.CheckBox     => new CheckBox(),
+        ControlMeta.Types.ComboBox     => new ComboBox(),
+        ControlMeta.Types.ListBox      => new ListBox(),
+        ControlMeta.Types.StackPanel   => new StackPanel(),
+        ControlMeta.Types.Grid         => new Grid(),
+        ControlMeta.Types.Image        => new Image(),
+        ControlMeta.Types.ScrollViewer => new ScrollViewer(),
+        ControlMeta.Types.Border       => new Border(),
+        ControlMeta.Types.TabControl   => new TabControl(),
+        ControlMeta.Types.TabItem      => new TabItem(),
         _ => throw new ArgumentException($"未知控件类型: '{type}'"),
     };
 
@@ -163,6 +172,9 @@ public class ControlBuilder
 
         switch (parent)
         {
+            case TabControl tab:
+                tab.Items.Add(child);
+                break;
             case Panel panel:
                 panel.Children.Add(child);
                 break;
@@ -315,51 +327,80 @@ public class ControlBuilder
         if (inpc == null || template == null)
             return new Panel();
 
-        // 重新注册内置模块到 GlobalSlotRegistry（确保模板 Lambda 内的 import 变量可用）
-        // 模板运行在新 VM 中，需要 GlobalSlotRegistry 有最新值
         var engine = _adapter.Engine!;
         EnsureGlobalSlotsForTemplate(engine);
 
         var placeholder = new StackPanel();
+        // 增量更新追踪: index → (control, itemHash)
+        var rendered = new Dictionary<int, (Control control, int itemHash)>();
 
-        void RebuildChildren()
+        Control RenderItem(int i, Value item)
+        {
+            var idx = NumberValueFactory.Create(i);
+            try
+            {
+                var task = template.CallAsync(engine, [item, idx]);
+                var result = task.GetAwaiter().GetResult();
+                return result is ObjectValue childDesc ? BuildInternal(childDesc)
+                    : new TextBlock { Text = "?" };
+            }
+            catch (Exception ex)
+            {
+                Log.Warn($"[vfor] template failed index={i}: {ex.Message}");
+                return new TextBlock { Text = "⚠" };
+            }
+        }
+
+        void FullRebuild()
         {
             var arr = inpc.Get();
             if (arr is not ArrayValue av) return;
-
             Dispatcher.UIThread.Post(() =>
             {
                 placeholder.Children.Clear();
-
+                rendered.Clear();
                 for (int i = 0; i < av.Elements.Count; i++)
                 {
-                    var item = av.Elements[i];
-                    var index = NumberValueFactory.Create(i);
-
-                    try
-                    {
-                        var task = template.CallAsync(engine, [item, index]);
-                        var result = task.GetAwaiter().GetResult();
-
-                        if (result is ObjectValue childDesc)
-                        {
-                            var child = BuildInternal(childDesc);
-                            placeholder.Children.Add(child);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Warn($"[vfor] template failed index={i}: {ex.Message}");
-                    }
+                    var c = RenderItem(i, av.Elements[i]);
+                    placeholder.Children.Add(c);
+                    rendered[i] = (c, av.Elements[i].GetHashCode());
                 }
             });
         }
 
-        // 初始构建
-        RebuildChildren();
+        void IncrementalUpdate()
+        {
+            var arr = inpc.Get();
+            if (arr is not ArrayValue av) return;
+            Dispatcher.UIThread.Post(() =>
+            {
+                int n = av.Elements.Count;
+                for (int i = 0; i < n; i++)
+                {
+                    var item = av.Elements[i];
+                    var hash = item.GetHashCode();
+                    if (rendered.TryGetValue(i, out var ex) && ex.itemHash == hash)
+                        continue; // 复用
+                    var c = RenderItem(i, item);
+                    if (i < placeholder.Children.Count)
+                    {
+                        placeholder.Children[i] = c;
+                    }
+                    else
+                    {
+                        placeholder.Children.Add(c);
+                    }
+                    rendered[i] = (c, hash);
+                }
+                while (placeholder.Children.Count > n)
+                    placeholder.Children.RemoveAt(placeholder.Children.Count - 1);
+                foreach (var k in rendered.Keys.Where(k => k >= n).ToArray())
+                    rendered.Remove(k);
+            });
+        }
 
-        // 订阅数组变更 → 全量重建
-        inpc.OnChange(_ => RebuildChildren());
+        FullRebuild();
+        inpc.OnChange(_ => IncrementalUpdate());
 
         return placeholder;
     }

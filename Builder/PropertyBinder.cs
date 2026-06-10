@@ -227,10 +227,122 @@ public class PropertyBinder
             ApplyStackPanelProperty(stackPanel, name, value);
         else if (control is Grid grid)
             ApplyGridProperty(grid, name, value);
+        else if (control is Image image)
+            ApplyImageProperty(image, name, value);
+        else if (control is ScrollViewer sv)
+            ApplyScrollViewerProperty(sv, name, value);
+        else if (control is Border border)
+            ApplyBorderProperty(border, name, value);
+        else if (control is TabControl tabControl)
+            ApplyTabControlProperty(tabControl, name, value);
+        else if (control is TabItem tabItem)
+            ApplyTabItemProperty(tabItem, name, value);
         else if (control is TextBlock textBlock)
             ApplyLabelProperty(textBlock, name, value);
         else
             ApplyByReflection(control, name, value);
+    }
+
+    // ========================================================================
+    // Image
+    // ========================================================================
+    private static void ApplyImageProperty(Image img, string name, Value value)
+    {
+        switch (name)
+        {
+            case "source":
+                var src = value.AsString();
+                if (!string.IsNullOrEmpty(src))
+                {
+                    try { img.Source = new Avalonia.Media.Imaging.Bitmap(src); }
+                    catch { /* 文件不存在或格式错误 */ }
+                }
+                break;
+            case "stretch":
+                img.Stretch = value.AsString()?.ToLowerInvariant() switch
+                {
+                    "fill" => Avalonia.Media.Stretch.Fill,
+                    "uniformtofill" or "uniform_to_fill" => Avalonia.Media.Stretch.UniformToFill,
+                    "none" => Avalonia.Media.Stretch.None,
+                    _ => Avalonia.Media.Stretch.Uniform,
+                };
+                break;
+        }
+    }
+
+    // ========================================================================
+    // ScrollViewer
+    // ========================================================================
+    private static void ApplyScrollViewerProperty(ScrollViewer sv, string name, Value value)
+    {
+        switch (name)
+        {
+            case "horizontalScrollBarVisibility":
+                sv.HorizontalScrollBarVisibility = ParseScrollBarVisibility(value);
+                break;
+            case "verticalScrollBarVisibility":
+                sv.VerticalScrollBarVisibility = ParseScrollBarVisibility(value);
+                break;
+        }
+    }
+
+    private static Avalonia.Controls.Primitives.ScrollBarVisibility ParseScrollBarVisibility(Value v)
+    {
+        return v.AsString()?.ToLowerInvariant() switch
+        {
+            "disabled" or "hidden" => Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
+            "auto" => Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+            "visible" => Avalonia.Controls.Primitives.ScrollBarVisibility.Visible,
+            _ => Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+        };
+    }
+
+    // ========================================================================
+    // Border
+    // ========================================================================
+    private static void ApplyBorderProperty(Border border, string name, Value value)
+    {
+        switch (name)
+        {
+            case "background":
+                border.Background = ToBrush(value);
+                break;
+            case "borderBrush":
+                border.BorderBrush = ToBrush(value);
+                break;
+            case "borderThickness":
+                border.BorderThickness = ToThickness(value);
+                break;
+            case "cornerRadius":
+                border.CornerRadius = new Avalonia.CornerRadius(ToDouble(value));
+                break;
+        }
+    }
+
+    // ========================================================================
+    // TabControl
+    // ========================================================================
+    private static void ApplyTabControlProperty(TabControl tc, string name, Value value)
+    {
+        switch (name)
+        {
+            case "selectedIndex":
+                if (value.IsNumber_Int) tc.SelectedIndex = value.As<int>();
+                break;
+        }
+    }
+
+    // ========================================================================
+    // TabItem
+    // ========================================================================
+    private static void ApplyTabItemProperty(TabItem ti, string name, Value value)
+    {
+        switch (name)
+        {
+            case "header":
+                ti.Header = value.AsString();
+                break;
+        }
     }
 
     // ========================================================================

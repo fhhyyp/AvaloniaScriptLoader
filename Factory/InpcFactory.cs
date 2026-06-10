@@ -57,10 +57,18 @@ public static class InpcFactory
             if (func is not ICallable callable)
                 throw new ArgumentException("computed() 需要一个函数参数，例如: computed(() => { ... })");
 
-            // 创建 ComputedValue，compute 委托持有 engine 引用以重新执行 Lambda
+            // 缓存 VM 实例复用（避免 ComputedValue 每次求值创建 VM）
+            ScriptLang.Runtime.ByteCode.VM? cachedVm = null;
+
             var computedInstance = new ComputedValue(() =>
             {
-                // 脚本 Lambda 执行是同步的（无 I/O），.Result 不会死锁
+                // 优先使用缓存的 VM 直接调用（跳过 CallAsync 的 VM 创建开销）
+                if (callable is ScriptLang.Runtime.CompiledFunctionValue cfv)
+                {
+                    cachedVm ??= new ScriptLang.Runtime.ByteCode.VM(engine);
+                    var valueTask = cachedVm.InvokeCompiledFunctionAsync(cfv, []);
+                    return valueTask.GetAwaiter().GetResult();
+                }
                 var task = callable.CallAsync(engine, []);
                 return task.GetAwaiter().GetResult();
             });

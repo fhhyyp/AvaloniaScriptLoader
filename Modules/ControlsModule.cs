@@ -16,15 +16,21 @@ public static class ControlsModule
     {
         var properties = new Dictionary<string, Value>
         {
-            ["window"]     = ControlFactory.CreateWindowFactory(),
-            ["button"]     = ControlFactory.CreateButtonFactory(),
-            ["label"]      = ControlFactory.CreateLabelFactory(),
-            ["textbox"]    = ControlFactory.CreateTextBoxFactory(),
-            ["checkbox"]   = ControlFactory.CreateCheckBoxFactory(),
-            ["combobox"]   = ControlFactory.CreateComboBoxFactory(),
-            ["listbox"]    = ControlFactory.CreateListBoxFactory(),
-            ["stackpanel"] = ControlFactory.CreateStackPanelFactory(),
-            ["grid"]       = ControlFactory.CreateGridFactory(),
+            ["window"]       = ControlFactory.CreateWindowFactory(),
+            ["button"]       = ControlFactory.CreateButtonFactory(),
+            ["label"]        = ControlFactory.CreateLabelFactory(),
+            ["textbox"]      = ControlFactory.CreateTextBoxFactory(),
+            ["checkbox"]     = ControlFactory.CreateCheckBoxFactory(),
+            ["combobox"]     = ControlFactory.CreateComboBoxFactory(),
+            ["listbox"]      = ControlFactory.CreateListBoxFactory(),
+            ["stackpanel"]   = ControlFactory.CreateStackPanelFactory(),
+            ["grid"]         = ControlFactory.CreateGridFactory(),
+            // 新增控件
+            ["image"]        = ControlFactory.CreateImageFactory(),
+            ["scrollviewer"] = ControlFactory.CreateScrollViewerFactory(),
+            ["border"]       = ControlFactory.CreateBorderFactory(),
+            ["tabcontrol"]   = ControlFactory.CreateTabControlFactory(),
+            ["tabitem"]      = ControlFactory.CreateTabItemFactory(),
         };
 
         return new ObjectValue(properties);

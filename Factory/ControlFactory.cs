@@ -60,6 +60,28 @@ public static class ControlFactory
         new("grid", args => BuildDescriptor(ControlMeta.Types.Grid, args,
             ["rows", "cols", "children"]));
 
+    // === 新增控件 ===
+
+    public static FunctionValue CreateImageFactory() =>
+        new("image", args => BuildDescriptor(ControlMeta.Types.Image, args,
+            ["source", "stretch"]));
+
+    public static FunctionValue CreateScrollViewerFactory() =>
+        new("scrollviewer", args => BuildDescriptor(ControlMeta.Types.ScrollViewer, args,
+            ["content", "horizontalScrollBarVisibility", "verticalScrollBarVisibility"]));
+
+    public static FunctionValue CreateBorderFactory() =>
+        new("border", args => BuildDescriptor(ControlMeta.Types.Border, args,
+            ["content", "background", "borderBrush", "borderThickness", "cornerRadius"]));
+
+    public static FunctionValue CreateTabControlFactory() =>
+        new("tabcontrol", args => BuildDescriptor(ControlMeta.Types.TabControl, args,
+            ["items", "selectedIndex"]));
+
+    public static FunctionValue CreateTabItemFactory() =>
+        new("tabitem", args => BuildDescriptor(ControlMeta.Types.TabItem, args,
+            ["header", "content"]));
+
     // ============================================================================
     // 核心构建逻辑
     // ============================================================================

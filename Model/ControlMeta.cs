@@ -29,6 +29,12 @@ public static class ControlMeta
         public const string ListBox = "listbox";
         public const string StackPanel = "stackpanel";
         public const string Grid = "grid";
+        // 新增控件
+        public const string Image = "image";
+        public const string ScrollViewer = "scrollviewer";
+        public const string Border = "border";
+        public const string TabControl = "tabcontrol";
+        public const string TabItem = "tabitem";
     }
 
     /// <summary>控件属性名前缀（用于识别 setter 方法）</summary>
