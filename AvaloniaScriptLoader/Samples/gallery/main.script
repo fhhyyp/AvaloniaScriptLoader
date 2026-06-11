@@ -3,7 +3,7 @@
 //  展示全部 19 种控件 + 响应式特性 + 实际场景示例
 // ═══════════════════════════════════════════════════════════
 import { app, inpc, computed, vif } from "avalonia"
-import { window, grid, stackpanel, button, label, textbox, checkbox, combobox, listbox, slider, progressbar, datepicker, border, image, scrollviewer, tabcontrol, tabitem, dialog } from "avalonia.controls"
+import { window, grid, stackpanel, button, label, textbox, checkbox, combobox, listbox, slider, progressbar, datepicker, timepicker, border, image, scrollviewer, tabcontrol, tabitem, dialog } from "avalonia.controls"
 import { _loaded } from "styles.script"
 
 var currentPage = inpc("label")
@@ -30,7 +30,8 @@ var agreeTerms   = inpc(false, "twoway")
 var volumeVal    = inpc(70, "twoway")
 var brightness   = inpc(85, "twoway")
 var uploadProgress = inpc(42)
-var birthDate    = inpc("2000-01-01")
+var birthDate    = inpc(date("2000-01-01"), "twoway")
+var meetingTime  = inpc(now(), "twoway")
 var focusState   = inpc("点击下方输入框")
 var blurState    = inpc("—")
 var showHelp     = inpc(false)
@@ -166,11 +167,21 @@ let demoProgressBar = () => demoSection("ProgressBar 进度条",
 
 // ═══ DatePicker ═══
 let demoDatePicker = () => demoSection("DatePicker 日期选择",
-    "原生日期选择器。表单中的日期输入",
+    "使用 date() 创建 DateTimeValue，支持 twoway 双向绑定",
     stackpanel({"spacing" = 8, "children" = [
         label({"text" = "出生日期:", "fontSize" = 12}),
         datepicker({"selectedDate" = birthDate, "width" = 220}),
-        label({"text" = computed(() => "已选: " + birthDate.get()), "fontSize" = 12, "color" = "#334155"})
+        label({"text" = computed(() => "已选: " + birthDate.get().toString("yyyy-MM-dd")), "fontSize" = 12, "color" = "#334155"})
+    ]})
+)
+
+// ═══ TimePicker ═══
+let demoTimePicker = () => demoSection("TimePicker 时间选择",
+    "使用 now() 创建当前 DateTimeValue，支持 twoway 双向绑定",
+    stackpanel({"spacing" = 8, "children" = [
+        label({"text" = "会议时间:", "fontSize" = 12}),
+        timepicker({"selectedTime" = meetingTime, "width" = 220}),
+        label({"text" = computed(() => "已选: " + meetingTime.get().toString("HH:mm")), "fontSize" = 12, "color" = "#334155"})
     ]})
 )
 
@@ -340,6 +351,7 @@ return window({
                     label({"text" = "进度与日期", "class" = "sidebarCat"}),
                     navItem("progressbar", "ProgressBar"),
                     navItem("datepicker",  "DatePicker"),
+                    navItem("timepicker",  "TimePicker"),
                     label({"text" = "容器与布局", "class" = "sidebarCat"}),
                     navItem("border",      "Border 边框"),
                     navItem("scrollviewer","ScrollViewer"),
@@ -360,7 +372,7 @@ return window({
                 "spacing" = 16, "padding" = 24,
                 "children" = [
                     label({"text" = "控件画廊", "class" = "pageTitle"}),
-                    label({"text" = "19 种控件 + 响应式特性  |  QQ群 955830545", "class" = "pageSub"}),
+                    label({"text" = "20 种控件 + 响应式特性  |  QQ群 955830545", "class" = "pageSub"}),
                     border({"class" = "divider", "height" = 1}),
                     stackpanel({"spacing" = 0, "children" = [
                         vif(isPage("label"),       demoLabel()),
@@ -372,6 +384,7 @@ return window({
                         vif(isPage("slider"),      demoSlider()),
                         vif(isPage("progressbar"), demoProgressBar()),
                         vif(isPage("datepicker"),  demoDatePicker()),
+                        vif(isPage("timepicker"),  demoTimePicker()),
                         vif(isPage("border"),      demoBorder()),
                         vif(isPage("scrollviewer"),demoScrollViewer()),
                         vif(isPage("stackpanel"),  demoStackPanel()),

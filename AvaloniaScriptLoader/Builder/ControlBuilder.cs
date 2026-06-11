@@ -173,6 +173,7 @@ public class ControlBuilder
         ControlMeta.Types.TabItem      => new TabItem(),
         ControlMeta.Types.DataGrid    => CreateDataGridReflection(),
         ControlMeta.Types.DatePicker => new DatePicker(),
+        ControlMeta.Types.TimePicker => new TimePicker(),
         ControlMeta.Types.Slider     => new Slider(),
         ControlMeta.Types.ProgressBar => new ProgressBar(),
         _ => throw new ArgumentException($"未知控件类型: '{type}'"),
@@ -316,6 +317,30 @@ public class ControlBuilder
                         try
                         {
                             var args = Evt("change", ("checked", BoolValue.Create(checkBox.IsChecked ?? false)));
+                            await changeFunc.CallAsync(engine, [args]);
+                        }
+                        catch (Exception ex) { LogEventError("onChange", ex); }
+                    };
+                    break;
+                case DatePicker dp:
+                    dp.SelectedDateChanged += async (s, e) =>
+                    {
+                        try
+                        {
+                            var dt = e.NewDate?.DateTime ?? System.DateTime.Now;
+                            var args = Evt("change", ("selectedDate", new DateTimeValue(dt)));
+                            await changeFunc.CallAsync(engine, [args]);
+                        }
+                        catch (Exception ex) { LogEventError("onChange", ex); }
+                    };
+                    break;
+                case TimePicker tp:
+                    tp.SelectedTimeChanged += async (s, e) =>
+                    {
+                        try
+                        {
+                            var ts = e.NewTime ?? System.TimeSpan.Zero;
+                            var args = Evt("change", ("selectedTime", new DateTimeValue(System.DateTime.Today.Add(ts))));
                             await changeFunc.CallAsync(engine, [args]);
                         }
                         catch (Exception ex) { LogEventError("onChange", ex); }

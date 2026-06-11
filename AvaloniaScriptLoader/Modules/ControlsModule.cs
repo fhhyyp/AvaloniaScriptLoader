@@ -34,6 +34,7 @@ public static class ControlsModule
             ["datagrid"]     = ControlFactory.CreateDataGridFactory(),
             ["dialog"]       = ControlFactory.CreateDialogFactory(),
             ["datepicker"]   = ControlFactory.CreateDatePickerFactory(),
+            ["timepicker"]   = ControlFactory.CreateTimePickerFactory(),
             ["slider"]       = ControlFactory.CreateSliderFactory(),
             ["progressbar"]  = ControlFactory.CreateProgressBarFactory(),
         };

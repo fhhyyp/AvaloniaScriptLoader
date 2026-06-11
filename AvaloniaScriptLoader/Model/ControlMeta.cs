@@ -38,6 +38,7 @@ public static class ControlMeta
         public const string DataGrid = "datagrid";
         public const string Dialog = "dialog";
         public const string DatePicker = "datepicker";
+        public const string TimePicker = "timepicker";
         public const string Slider = "slider";
         public const string ProgressBar = "progressbar";
     }

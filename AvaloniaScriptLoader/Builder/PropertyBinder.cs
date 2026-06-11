@@ -129,6 +129,52 @@ public class PropertyBinder
                 }
                 break;
 
+            case "selectedDate":
+                if (control is DatePicker dp)
+                {
+                    var updating = false;
+                    dp.SelectedDateChanged += (s, e) =>
+                    {
+                        if (updating) return;
+                        if (e.NewDate.HasValue)
+                        {
+                            updating = true;
+                            try
+                            {
+                                inpc.Set(new DateTimeValue(e.NewDate.Value.DateTime));
+                            }
+                            finally
+                            {
+                                updating = false;
+                            }
+                        }
+                    };
+                }
+                break;
+
+            case "selectedTime":
+                if (control is TimePicker tp)
+                {
+                    var updating = false;
+                    tp.SelectedTimeChanged += (s, e) =>
+                    {
+                        if (updating) return;
+                        if (e.NewTime.HasValue)
+                        {
+                            updating = true;
+                            try
+                            {
+                                inpc.Set(new DateTimeValue(System.DateTime.Today.Add(e.NewTime.Value)));
+                            }
+                            finally
+                            {
+                                updating = false;
+                            }
+                        }
+                    };
+                }
+                break;
+
             case "selected":
                 if (control is ComboBox combo)
                 {
@@ -287,6 +333,8 @@ public class PropertyBinder
             ApplyDataGridByReflection(control, name, value);
         else if (control is DatePicker dp)
             ApplyDatePickerProperty(dp, name, value);
+        else if (control is TimePicker tp)
+            ApplyTimePickerProperty(tp, name, value);
         else if (control is Slider slider)
             ApplySliderProperty(slider, name, value);
         else if (control is ProgressBar pb)
@@ -305,8 +353,42 @@ public class PropertyBinder
         switch (name)
         {
             case "selectedDate":
-                if (DateTime.TryParse(value.AsString(), out var dt))
+                if (value is DateTimeValue dtv)
+                    dp.SelectedDate = new DateTimeOffset(dtv.Value);
+                else if (value is StringValue sv && DateTime.TryParse(sv.Value, out var dt))
                     dp.SelectedDate = new DateTimeOffset(dt);
+                else if (DateTime.TryParse(value.AsString(), out var dt2))
+                    dp.SelectedDate = new DateTimeOffset(dt2);
+                break;
+            case "minYear":
+                if (value.IsNumber_Int) dp.MinYear = new DateTimeOffset(value.As<int>(), 1, 1, 0, 0, 0, System.TimeSpan.Zero);
+                break;
+            case "maxYear":
+                if (value.IsNumber_Int) dp.MaxYear = new DateTimeOffset(value.As<int>(), 12, 31, 0, 0, 0, System.TimeSpan.Zero);
+                break;
+        }
+    }
+
+    // ========================================================================
+    // TimePicker
+    // ========================================================================
+    private static void ApplyTimePickerProperty(TimePicker tp, string name, Value value)
+    {
+        switch (name)
+        {
+            case "selectedTime":
+                if (value is DateTimeValue dtv)
+                    tp.SelectedTime = dtv.Value.TimeOfDay;
+                else if (value is StringValue sv && System.TimeSpan.TryParse(sv.Value, out var ts))
+                    tp.SelectedTime = ts;
+                else if (System.TimeSpan.TryParse(value.AsString(), out var ts2))
+                    tp.SelectedTime = ts2;
+                break;
+            case "minuteIncrement":
+                if (value.IsNumber_Int) tp.MinuteIncrement = value.As<int>();
+                break;
+            case "clockIdentifier":
+                tp.ClockIdentifier = value.AsString();
                 break;
         }
     }

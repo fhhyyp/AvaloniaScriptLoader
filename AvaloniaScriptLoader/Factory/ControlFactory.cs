@@ -95,6 +95,10 @@ public static class ControlFactory
         new("datepicker", args => BuildDescriptor(ControlMeta.Types.DatePicker, args,
             ["selectedDate", "minYear", "maxYear"]));
 
+    public static FunctionValue CreateTimePickerFactory() =>
+        new("timepicker", args => BuildDescriptor(ControlMeta.Types.TimePicker, args,
+            ["selectedTime", "minuteIncrement", "clockIdentifier"]));
+
     public static FunctionValue CreateSliderFactory() =>
         new("slider", args => BuildDescriptor(ControlMeta.Types.Slider, args,
             ["value", "minimum", "maximum", "tickFrequency"]));
@@ -180,6 +184,7 @@ public static class ControlFactory
             "checked", "selected", "selectedItem", "items",
             "fontSize", "color", "background", "placeholder",
             "title", "content", "children",
+            "selectedDate", "selectedTime", "value",
         };
 
         foreach (var propName in supportedProperties)
