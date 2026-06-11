@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
@@ -278,6 +279,29 @@ public class PropertyBinder
                 break;
             case "enabled":
                 control.IsEnabled = value.AsBool();
+                break;
+
+            // === windowDrag: 标记控件为窗口拖拽句柄（自定义标题栏） ===
+            case "windowDrag":
+                if (value.AsBool())
+                {
+                    control.AddHandler(InputElement.PointerPressedEvent, (s, e) =>
+                    {
+                        var e2 = e as PointerPressedEventArgs;
+                        if (e2?.GetCurrentPoint(control).Properties.IsLeftButtonPressed == true)
+                        {
+                            var w = TopLevel.GetTopLevel(control) as Window;
+                            if (w == null) return;
+                            w.BeginMoveDrag(e2);
+
+                            // Avalonia 12: BeginMoveDrag 只需 PointerPressedEventArgs
+                            /*var dragMethod = typeof(Window).GetMethod("BeginMoveDrag",
+                                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                            if (dragMethod != null)
+                                dragMethod.Invoke(w, [e2]);*/
+                        }
+                    });
+                }
                 break;
 
             // === CheckBox 特有（顶层处理，避免路由丢失） ===
@@ -626,6 +650,34 @@ public class PropertyBinder
                 break;
             case "height":
                 window.Height = ToDouble(value);
+                break;
+            case "systemDecorations":
+                // 反射设置 SystemDecorations（枚举名在 Avalonia 12 中可能不同）
+                var sdProp = typeof(Window).GetProperty("SystemDecorations");
+                if (sdProp != null)
+                {
+                    var sdNone = Enum.Parse(sdProp.PropertyType, "None");
+                    var sdBorderOnly = Enum.Parse(sdProp.PropertyType, "BorderOnly");
+                    var sdFull = Enum.Parse(sdProp.PropertyType, "Full");
+                    var sdVal = value.AsString() switch
+                    {
+                        "none" => sdNone,
+                        "borderOnly" => sdBorderOnly,
+                        _ => sdFull,
+                    };
+                    sdProp.SetValue(window, sdVal);
+                }
+                break;
+            case "canResize":
+                window.CanResize = value.AsBool();
+                break;
+            case "extendClientArea":
+                if (value.AsBool())
+                {
+                    // ExtendClientAreaToDecorationsHint
+                    var hintProp = typeof(Window).GetProperty("ExtendClientAreaToDecorationsHint");
+                    hintProp?.SetValue(window, true);
+                }
                 break;
         }
     }

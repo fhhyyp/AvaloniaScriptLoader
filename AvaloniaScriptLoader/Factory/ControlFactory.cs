@@ -26,7 +26,7 @@ public static class ControlFactory
 
     public static FunctionValue CreateWindowFactory() =>
         new("window", args => BuildDescriptor(ControlMeta.Types.Window, args,
-            ["title", "width", "height", "content"]));
+            ["title", "width", "height", "content", "systemDecorations", "canResize", "extendClientArea"]));
 
     public static FunctionValue CreateButtonFactory() =>
         new("button", args => BuildDescriptor(ControlMeta.Types.Button, args,
@@ -169,7 +169,7 @@ public static class ControlFactory
         // 复制通用属性（所有控件都支持）
         foreach (var commonProp in new[] { "width", "height", "minWidth", "minHeight", "maxWidth", "maxHeight", "margin", "padding", "visible", "enabled", "name",
             "horizontalAlignment", "verticalAlignment", "row", "col", "rowSpan", "colSpan",
-            "onClick", "onChange", "onSelect", "onKeyDown", "onFocus", "onBlur", "tooltip", "contextMenu" })
+            "onClick", "onChange", "onSelect", "onKeyDown", "onFocus", "onBlur", "tooltip", "contextMenu", "windowDrag" })
         {
             if (optProps.TryGetValue(commonProp, out var value))
             {

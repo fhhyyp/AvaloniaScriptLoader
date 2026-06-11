@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Layout;
@@ -7,18 +8,7 @@ using Avalonia.Layout;
 namespace AvaloniaScriptLoader.Controls;
 
 /// <summary>
-/// 现代化垂直导航菜单 — 使用 ScrollViewer + StackPanel 组合
-/// 绕过 ItemsControl 模板系统，直接操作视觉树
-///
-/// 脚本用法:
-///   navmenu({
-///       "onSelect" = (e) => { ... },
-///       "items" = [
-///           navmenugroup({"header" = "分类名", "items" = [
-///               navmenuitem({"text" = "菜单项", "icon" = "🔘"}),
-///           ]}),
-///       ]
-///   })
+/// 现代化垂直导航菜单 — 继承 ScrollViewer，内部 StackPanel
 /// </summary>
 public class NavMenu : ScrollViewer
 {
@@ -26,12 +16,12 @@ public class NavMenu : ScrollViewer
 
     public NavMenu()
     {
-        Background = Brushes.Transparent;
         _panel = new StackPanel();
+        VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
+        HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled;
         Content = _panel;
     }
 
-    /// <summary>添加一个子项到内部 StackPanel</summary>
     internal void AddItem(Control item)
     {
         _panel.Children.Add(item);
@@ -172,7 +162,7 @@ public class NavMenuGroup : ContentControl
     private readonly StackPanel _headerRow;
 
     // === 字段 ===
-    private bool _isExpanded = true;
+    private bool _isExpanded = false;
     private List<NavMenuItem>? _children;
 
     /// <summary>分组标题文本（通过反射由 PropertyBinder 设置）</summary>
@@ -194,11 +184,12 @@ public class NavMenuGroup : ContentControl
         }
     }
 
-    /// <summary>注册子项（由 ControlBuilder 在构建 items 时调用）</summary>
+    /// <summary>注册子项（由 ControlBuilder 在构建 items 时调用），同步当前展开状态</summary>
     internal void AddChild(NavMenuItem item)
     {
         _children ??= new List<NavMenuItem>();
         _children.Add(item);
+        item.IsVisible = _isExpanded;
     }
 
     /// <summary>
@@ -232,7 +223,7 @@ public class NavMenuGroup : ContentControl
         // 展开/折叠箭头（不继承 FontSize，保持小号）
         _arrowBlock = new TextBlock
         {
-            Text = "▼",
+            Text = "▶",
             FontSize = 8,
             Foreground = Brush.Parse("#64748b"),
             VerticalAlignment = VerticalAlignment.Center,

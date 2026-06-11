@@ -102,6 +102,15 @@ public static class AvaloniaModule
                     adapter.FindControl(name)?.Control.Focus();
                 });
             }),
+
+            // === close() — 关闭主窗口 ===
+            ["close"] = new FunctionValue("close", (List<Value> args) =>
+            {
+                Dispatcher.UIThread.Post(() =>
+                {
+                    MainWindow?.Close();
+                });
+            }),
         });
     }
 
