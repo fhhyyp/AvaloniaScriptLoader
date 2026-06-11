@@ -57,6 +57,14 @@ public class ControlBuilder
         window.Content = rootGrid;
 
         Modules.AvaloniaModule.MainWindow = window;
+
+        // 注入 window.close() 方法到描述符（脚本可通过引用关闭窗口）
+        descriptor.Properties["close"] = new FunctionValue("close", (List<Value> args) =>
+        {
+            Dispatcher.UIThread.Post(() => window.Close());
+            return Value.Null;
+        });
+
         return window;
     }
 

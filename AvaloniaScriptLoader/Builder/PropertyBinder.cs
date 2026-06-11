@@ -652,7 +652,6 @@ public class PropertyBinder
                 window.Height = ToDouble(value);
                 break;
             case "systemDecorations":
-                // 反射设置 SystemDecorations（枚举名在 Avalonia 12 中可能不同）
                 var sdProp = typeof(Window).GetProperty("SystemDecorations");
                 if (sdProp != null)
                 {

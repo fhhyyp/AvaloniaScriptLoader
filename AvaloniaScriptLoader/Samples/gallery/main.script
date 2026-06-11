@@ -398,7 +398,8 @@ var catFramework = computed(() => {
 })
 
 // ═══ 主窗口（无边框 + 自定义标题栏） ═══
-let main = window({
+var main = null
+main = window({
     title = "AvaloniaScriptLoader — 控件画廊",
     width = 880, height = 620,
     systemDecorations = "none",
@@ -421,7 +422,7 @@ let main = window({
                                     button({col = 2, text = "✕", fontSize = 13, color = "#94a3b8",
                                         background = "transparent",
                                         verticalAlignment = "center",
-                                        onClick = () => { app.close() }})
+                                        onClick = () => main.close()})
                                 ]})
                         }),
                         // 侧边栏导航

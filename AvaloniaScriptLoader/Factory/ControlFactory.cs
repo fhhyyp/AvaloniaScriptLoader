@@ -26,7 +26,7 @@ public static class ControlFactory
 
     public static FunctionValue CreateWindowFactory() =>
         new("window", args => BuildDescriptor(ControlMeta.Types.Window, args,
-            ["title", "width", "height", "content", "systemDecorations", "canResize", "extendClientArea"]));
+            ["title", "width", "height", "content", "systemDecorations", "canResize", "extendClientArea", "close"]));
 
     public static FunctionValue CreateButtonFactory() =>
         new("button", args => BuildDescriptor(ControlMeta.Types.Button, args,
