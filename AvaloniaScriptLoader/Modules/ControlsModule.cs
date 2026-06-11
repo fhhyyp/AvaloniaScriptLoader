@@ -37,6 +37,9 @@ public static class ControlsModule
             ["timepicker"]   = ControlFactory.CreateTimePickerFactory(),
             ["slider"]       = ControlFactory.CreateSliderFactory(),
             ["progressbar"]  = ControlFactory.CreateProgressBarFactory(),
+            ["expander"]     = ControlFactory.CreateExpanderFactory(),
+            ["menuitem"]     = ControlFactory.CreateMenuItemFactory(),
+            ["separator"]    = ControlFactory.CreateSeparatorFactory(),
         };
 
         return new ObjectValue(properties);

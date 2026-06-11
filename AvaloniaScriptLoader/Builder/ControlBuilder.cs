@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Threading;
 using ScriptLang.Runtime;
 using AvaloniaScriptLoader.Factory;
@@ -148,6 +149,36 @@ public class ControlBuilder
             }
         }
 
+        // 8. 处理 header 属性为控件描述符（Expander / TabItem 等）
+        if (descriptor.Properties.TryGetValue("header", out var headerValue)
+            && headerValue is ObjectValue headerObj)
+        {
+            var headerControl = BuildInternal(headerObj);
+            if (control is Expander expander)
+                expander.Header = headerControl;
+            else if (control is TabItem ti)
+                ti.Header = headerControl;
+        }
+
+        // 9. 处理 contextMenu 右键菜单（附加属性，独立构建路径）
+        if (descriptor.Properties.TryGetValue("contextMenu", out var ctxVal)
+            && ctxVal is ArrayValue ctxItems)
+        {
+            var contextMenu = new ContextMenu { PlacementTarget = control };
+            BuildContextMenuItems(contextMenu.Items, ctxItems);
+            control.ContextMenu = contextMenu;
+            // ContextRequested 在非交互控件上可能不触发 → 改用 PointerPressed 检测右键
+            control.AddHandler(InputElement.PointerPressedEvent,
+                (object? s, PointerPressedEventArgs e) =>
+                {
+                    if (e.GetCurrentPoint(control).Properties.IsRightButtonPressed)
+                    {
+                        e.Handled = true;
+                        contextMenu.Open(control);
+                    }
+                }, handledEventsToo: true);
+        }
+
         return control;
     }
 
@@ -176,6 +207,7 @@ public class ControlBuilder
         ControlMeta.Types.TimePicker => new TimePicker(),
         ControlMeta.Types.Slider     => new Slider(),
         ControlMeta.Types.ProgressBar => new ProgressBar(),
+        ControlMeta.Types.Expander   => new Expander(),
         _ => throw new ArgumentException($"未知控件类型: '{type}'"),
     };
 
@@ -354,6 +386,18 @@ public class ControlBuilder
                             var args = Evt("change", ("value", NumberValueFactory.Create(slider.Value)));
                             await changeFunc.CallAsync(engine, [args]);
                         }
+                        catch (Exception ex) { LogEventError("onChange", ex); }
+                    };
+                    break;
+                case Expander expander:
+                    expander.Expanded += async (s, e) =>
+                    {
+                        try { await changeFunc.CallAsync(engine, [Evt("change", ("isExpanded", BoolValue.True))]); }
+                        catch (Exception ex) { LogEventError("onChange", ex); }
+                    };
+                    expander.Collapsed += async (s, e) =>
+                    {
+                        try { await changeFunc.CallAsync(engine, [Evt("change", ("isExpanded", BoolValue.False))]); }
                         catch (Exception ex) { LogEventError("onChange", ex); }
                     };
                     break;
@@ -661,5 +705,58 @@ public class ControlBuilder
             computed.OnChange(_ => UpdateChild());
 
         return placeholder;
+    }
+
+    // ========================================================================
+    // ContextMenu 构建（独立于主控件树）
+    // ========================================================================
+
+    /// <summary>
+    /// 递归构建 ContextMenu 的 MenuItem / Separator 树。
+    /// 不走 BuildInternal，因为 ContextMenu 是附加属性而非视觉树子节点。
+    /// </summary>
+    private void BuildContextMenuItems(System.Collections.IList items, ArrayValue descriptors)
+    {
+        var engine = _adapter.Engine!;
+
+        foreach (var elem in descriptors.Elements)
+        {
+            if (elem is not ObjectValue obj) continue;
+            var type = obj.Properties[ControlMeta.TypeKey].AsString();
+
+            if (type == ControlMeta.Types.Separator)
+            {
+                items.Add(new Separator());
+            }
+            else if (type == ControlMeta.Types.MenuItem)
+            {
+                var menuItem = new MenuItem();
+
+                if (obj.Properties.TryGetValue("header", out var h))
+                    menuItem.Header = h.AsString();
+                if (obj.Properties.TryGetValue("icon", out var icon))
+                    menuItem.Icon = new TextBlock { Text = icon.AsString() };
+                if (obj.Properties.TryGetValue("isChecked", out var chk))
+                    menuItem.IsChecked = chk.AsBool();
+
+                // onClick
+                if (obj.Properties.TryGetValue("onClick", out var onClick) && onClick is ICallable clickFunc)
+                {
+                    menuItem.Click += async (s, e) =>
+                    {
+                        try { await clickFunc.CallAsync(engine, []); }
+                        catch (Exception ex) { LogEventError("ContextMenu.onClick", ex); }
+                    };
+                }
+
+                // 递归子菜单
+                if (obj.Properties.TryGetValue("items", out var subItems) && subItems is ArrayValue subArr)
+                {
+                    BuildContextMenuItems(menuItem.Items, subArr);
+                }
+
+                items.Add(menuItem);
+            }
+        }
     }
 }

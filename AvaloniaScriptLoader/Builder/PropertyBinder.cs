@@ -31,7 +31,8 @@ public class PropertyBinder
             if (name.StartsWith("__")) continue;
             if (PropertyNames.IsEventProperty(name)) continue;
             if (PropertyNames.IsSetterMethod(name)) continue;
-            if (name is "children" or "content") continue;
+            if (name is "children" or "content" or "contextMenu") continue;
+            if (name is "header" && value is ObjectValue) continue; // ObjectValue header → BuildInternal 处理
 
             // 检测可观察包装（inpc / computed）
             if (InpcFactory.IsObservableWrapper(value))
@@ -339,6 +340,8 @@ public class PropertyBinder
             ApplySliderProperty(slider, name, value);
         else if (control is ProgressBar pb)
             ApplyProgressBarProperty(pb, name, value);
+        else if (control is Expander expander)
+            ApplyExpanderProperty(expander, name, value);
         else if (control is TextBlock textBlock)
             ApplyLabelProperty(textBlock, name, value);
         else
@@ -404,6 +407,33 @@ public class PropertyBinder
             case "minimum": s.Minimum = ToDouble(value); break;
             case "maximum": s.Maximum = ToDouble(value); break;
             case "tickFrequency": s.TickFrequency = ToDouble(value); break;
+        }
+    }
+
+    // ========================================================================
+    // Expander
+    // ========================================================================
+    private static void ApplyExpanderProperty(Expander expander, string name, Value value)
+    {
+        switch (name)
+        {
+            case "header":
+                if (value is not ObjectValue)
+                    expander.Header = value.AsString();
+                // ObjectValue header → handled by BuildInternal
+                break;
+            case "isExpanded":
+                expander.IsExpanded = value.AsBool();
+                break;
+            case "expandDirection":
+                expander.ExpandDirection = value.AsString()?.ToLowerInvariant() switch
+                {
+                    "up" => Avalonia.Controls.ExpandDirection.Up,
+                    "left" => Avalonia.Controls.ExpandDirection.Left,
+                    "right" => Avalonia.Controls.ExpandDirection.Right,
+                    _ => Avalonia.Controls.ExpandDirection.Down,
+                };
+                break;
         }
     }
 

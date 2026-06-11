@@ -107,6 +107,18 @@ public static class ControlFactory
         new("progressbar", args => BuildDescriptor(ControlMeta.Types.ProgressBar, args,
             ["value", "minimum", "maximum", "isIndeterminate"]));
 
+    public static FunctionValue CreateExpanderFactory() =>
+        new("expander", args => BuildDescriptor(ControlMeta.Types.Expander, args,
+            ["header", "content", "isExpanded", "expandDirection"]));
+
+    public static FunctionValue CreateMenuItemFactory() =>
+        new("menuitem", args => BuildDescriptor(ControlMeta.Types.MenuItem, args,
+            ["header", "icon", "isChecked", "items", "onClick"]));
+
+    public static FunctionValue CreateSeparatorFactory() =>
+        new("separator", args => BuildDescriptor(ControlMeta.Types.Separator, args,
+            []));
+
     // ============================================================================
     // 核心构建逻辑
     // ============================================================================
@@ -145,7 +157,7 @@ public static class ControlFactory
         // 复制通用属性（所有控件都支持）
         foreach (var commonProp in new[] { "width", "height", "minWidth", "minHeight", "maxWidth", "maxHeight", "margin", "padding", "visible", "enabled", "name",
             "horizontalAlignment", "verticalAlignment", "row", "col", "rowSpan", "colSpan",
-            "onClick", "onChange", "onSelect", "onKeyDown", "onFocus", "onBlur", "tooltip" })
+            "onClick", "onChange", "onSelect", "onKeyDown", "onFocus", "onBlur", "tooltip", "contextMenu" })
         {
             if (optProps.TryGetValue(commonProp, out var value))
             {
@@ -185,6 +197,7 @@ public static class ControlFactory
             "fontSize", "color", "background", "placeholder",
             "title", "content", "children",
             "selectedDate", "selectedTime", "value",
+            "isExpanded", "header",
         };
 
         foreach (var propName in supportedProperties)

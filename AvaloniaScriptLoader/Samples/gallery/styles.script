@@ -3,9 +3,6 @@ import { style } from "avalonia"
 
 // 侧边栏（深色）
 style("sidebar",       {"background" = "#0f172a", "padding" = 10})
-style("sidebarCat",    {"color" = "#64748b", "fontSize" = 10, "margin" = "4,14,4,6"})
-style("sidebarBtn",    {"color" = "#94a3b8", "fontSize" = 12, "padding" = "6,10"})
-style("sidebarActive", {"color" = "#ffffff", "fontSize" = 12, "background" = "#6366f1", "padding" = "6,10"})
 
 // 页面
 style("pageTitle",    {"color" = "#0f172a", "fontSize" = 22})

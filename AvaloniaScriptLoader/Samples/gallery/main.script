@@ -1,18 +1,29 @@
 // ═══════════════════════════════════════════════════════════
 //  AvaloniaScriptLoader — 控件画廊 (Control Gallery)
-//  展示全部 19 种控件 + 响应式特性 + 实际场景示例
+//  展示全部 22 种控件 + 响应式特性 + 实际场景示例
 // ═══════════════════════════════════════════════════════════
 import { app, inpc, computed, vif } from "avalonia"
-import { window, grid, stackpanel, button, label, textbox, checkbox, combobox, listbox, slider, progressbar, datepicker, timepicker, border, image, scrollviewer, tabcontrol, tabitem, dialog } from "avalonia.controls"
+import { window, grid, stackpanel, button, label, textbox, checkbox, combobox, listbox, slider, progressbar, datepicker, timepicker, border, image, scrollviewer, tabcontrol, tabitem, dialog, expander, menuitem, separator } from "avalonia.controls"
 import { _loaded } from "styles.script"
 
 var currentPage = inpc("label")
 
+// 当前页是否匹配（供 navItem 使用，必须定义在 navItem 前）
+let isPage = (id) => computed(() => currentPage.get() == id)
+
 let navItem = (id, text) => {
-    var cls = "sidebarBtn"
-    if (id == currentPage.get()) { cls = "sidebarActive" }
-    return button({"text" = text, "class" = cls,
-        "onClick" = () => { currentPage.set(id) }})
+    var active = isPage(id)
+    return border({
+        "cornerRadius" = 4,
+        "padding" = "6,12",
+        "background" = computed(() => { if (active.get()) { return "#6366f1" } return "#dddddd" }),
+        "onClick" = () => { currentPage.set(id) },
+        "content" = label({
+            "text" = text,
+            "fontSize" = 12,
+            "color" = computed(() => { if (active.get()) { return "#ffffff" } return "#94a3b8" })
+        })
+    })
 }
 
 let demoSection = (title, desc, demoContent) => {
@@ -24,17 +35,18 @@ let demoSection = (title, desc, demoContent) => {
 }
 
 // State
-var nameInput    = inpc("", "twoway")
-var emailInput   = inpc("", "twoway")
-var agreeTerms   = inpc(false, "twoway")
-var volumeVal    = inpc(70, "twoway")
-var brightness   = inpc(85, "twoway")
-var uploadProgress = inpc(42)
-var birthDate    = inpc(date("2000-01-01"), "twoway")
-var meetingTime  = inpc(now(), "twoway")
-var focusState   = inpc("点击下方输入框")
-var blurState    = inpc("—")
-var showHelp     = inpc(false)
+let nameInput    = inpc("", "twoway")
+let emailInput   = inpc("", "twoway")
+let agreeTerms   = inpc(false, "twoway")
+let volumeVal    = inpc(70, "twoway")
+let brightness   = inpc(85, "twoway")
+let uploadProgress = inpc(42)
+let birthDate    = inpc(date("2000-01-01"), "twoway")
+let meetingTime  = inpc(now(), "twoway")
+let focusState   = inpc("点击下方输入框")
+let blurState    = inpc("—")
+let showHelp     = inpc(false)
+let ctxMenuMsg   = inpc("—")
 
 // ═══ Label ═══
 let demoLabel = () => demoSection("Label 文本标签",
@@ -293,6 +305,47 @@ let demoImage = () => demoSection("Image 图片",
     ]})
 )
 
+// ═══ Expander ═══
+let demoExpander = () => demoSection("Expander 折叠面板",
+    "可折叠内容区域。支持 header/isExpanded/expandDirection。适用于设置面板、分类导航",
+    stackpanel({"spacing" = 8, "children" = [
+        expander({"header" = "基础设置", "isExpanded" = true, "content" = stackpanel({"spacing" = 4, "children" = [
+            label({"text" = "用户名: admin", "fontSize" = 12}),
+            label({"text" = "语言: 简体中文", "fontSize" = 12}),
+            label({"text" = "自动保存: 开启", "fontSize" = 12})
+        ]})}),
+        expander({"header" = "高级选项", "expandDirection" = "down", "content" = stackpanel({"spacing" = 4, "children" = [
+            label({"text" = "端口: 8080", "fontSize" = 12}),
+            label({"text" = "超时时间: 30s", "fontSize" = 12}),
+            label({"text" = "最大连接数: 100", "fontSize" = 12})
+        ]})})
+    ]})
+)
+
+// ═══ ContextMenu ═══
+let demoContextMenu = () => demoSection("ContextMenu 右键菜单",
+    "右键点击区域触发。支持图标、子菜单、分隔线、onClick",
+    stackpanel({"spacing" = 8, "children" = [
+        border({"background" = "#f1f5f9", "padding" = 40,
+            "contextMenu" = [
+                menuitem({"header" = "复制", "icon" = "📋", "onClick" = () => { ctxMenuMsg.set("已复制") }}),
+                menuitem({"header" = "粘贴", "icon" = "📄", "onClick" = () => { ctxMenuMsg.set("已粘贴") }}),
+                separator({}),
+                menuitem({"header" = "更多操作", "items" = [
+                    menuitem({"header" = "导出为 JSON", "onClick" = () => { ctxMenuMsg.set("导出 JSON") }}),
+                    menuitem({"header" = "导出为 CSV", "onClick" = () => { ctxMenuMsg.set("导出 CSV") }})
+                ]}),
+                separator({}),
+                menuitem({"header" = "删除", "icon" = "🗑", "onClick" = () => { ctxMenuMsg.set("已删除") }})
+            ],
+            "content" = stackpanel({"spacing" = 4, "children" = [
+                label({"text" = "在此区域点击右键", "fontSize" = 14}),
+                label({"text" = ctxMenuMsg, "fontSize" = 12, "color" = "#6366f1"})
+            ]})
+        })
+    ]})
+)
+
 // ═══ Reactive ═══
 let demoReactive = () => demoSection("响应式 inpc / computed / twoway",
     "核心机制: 状态变化自动驱动 UI 更新",
@@ -326,8 +379,48 @@ let demoStyle = () => demoSection("Style 样式系统",
     ]})
 )
 
-// ═══ 路由 ═══
-let isPage = (id) => computed(() => currentPage.get() == id)
+// ═══ 分类折叠导航 ═══
+// 每个分类的展开状态：当前激活页属于该分类时自动展开
+var catBasic = computed(() => {
+    var p = currentPage.get()
+    if (p == "label" || p == "button" || p == "textbox") { return true }
+    return false
+})
+var catSelect = computed(() => {
+    var p = currentPage.get()
+    if (p == "checkbox" || p == "combobox" || p == "listbox" || p == "slider") { return true }
+    return false
+})
+var catProgress = computed(() => {
+    var p = currentPage.get()
+    if (p == "progressbar" || p == "datepicker" || p == "timepicker") { return true }
+    return false
+})
+var catLayout = computed(() => {
+    var p = currentPage.get()
+    if (p == "border" || p == "scrollviewer" || p == "stackpanel" || p == "grid" || p == "tabcontrol" || p == "expander") { return true }
+    return false
+})
+var catAdvanced = computed(() => {
+    var p = currentPage.get()
+    if (p == "dialog" || p == "image" || p == "contextmenu") { return true }
+    return false
+})
+var catFramework = computed(() => {
+    var p = currentPage.get()
+    if (p == "reactive" || p == "tooltip" || p == "style") { return true }
+    return false
+})
+
+let navCategory = (title, isExpanded, items) => {
+    return expander({
+        "minWitdh" = 200,
+        "header" = label({"text" = title, "fontSize" = 11, "color" = "#94a3b8"}),
+        "isExpanded" = isExpanded,
+        "expandDirection" = "down",
+        "content" = stackpanel({"spacing" = 2, "children" = items})
+    })
+}
 
 // ═══ 主窗口 ═══
 return window({
@@ -337,34 +430,14 @@ return window({
         "rows" = ["*"], "cols" = [160, "*"],
         "children" = [
             scrollviewer({"col" = 0, "content" = stackpanel({
-                "class" = "sidebar", "spacing" = 2,
+                "class" = "sidebar", "spacing" = 0,
                 "children" = [
-                    label({"text" = "基础控件", "class" = "sidebarCat"}),
-                    navItem("label",       "Label 标签"),
-                    navItem("button",      "Button 按钮"),
-                    navItem("textbox",     "TextBox 输入"),
-                    label({"text" = "选择控件", "class" = "sidebarCat"}),
-                    navItem("checkbox",    "CheckBox 复选"),
-                    navItem("combobox",    "ComboBox 下拉"),
-                    navItem("listbox",     "ListBox 列表"),
-                    navItem("slider",      "Slider 滑块"),
-                    label({"text" = "进度与日期", "class" = "sidebarCat"}),
-                    navItem("progressbar", "ProgressBar"),
-                    navItem("datepicker",  "DatePicker"),
-                    navItem("timepicker",  "TimePicker"),
-                    label({"text" = "容器与布局", "class" = "sidebarCat"}),
-                    navItem("border",      "Border 边框"),
-                    navItem("scrollviewer","ScrollViewer"),
-                    navItem("stackpanel",  "StackPanel"),
-                    navItem("grid",        "Grid 网格"),
-                    navItem("tabcontrol",  "TabControl"),
-                    label({"text" = "高级", "class" = "sidebarCat"}),
-                    navItem("dialog",      "Dialog 对话框"),
-                    navItem("image",       "Image 图片"),
-                    label({"text" = "框架特性", "class" = "sidebarCat"}),
-                    navItem("reactive",    "响应式绑定"),
-                    navItem("tooltip",     "ToolTip 提示"),
-                    navItem("style",       "Style 样式")
+                    navCategory("基础控件",   catBasic,     [navItem("label", "Label 标签"), navItem("button", "Button 按钮"), navItem("textbox", "TextBox 输入")]),
+                    navCategory("选择控件",   catSelect,    [navItem("checkbox", "CheckBox 复选"), navItem("combobox", "ComboBox 下拉"), navItem("listbox", "ListBox 列表"), navItem("slider", "Slider 滑块")]),
+                    navCategory("进度与日期", catProgress,  [navItem("progressbar", "ProgressBar"), navItem("datepicker", "DatePicker"), navItem("timepicker", "TimePicker")]),
+                    navCategory("容器与布局", catLayout,    [navItem("border", "Border 边框"), navItem("scrollviewer", "ScrollViewer"), navItem("stackpanel", "StackPanel"), navItem("grid", "Grid 网格"), navItem("tabcontrol", "TabControl"), navItem("expander", "Expander")]),
+                    navCategory("高级",       catAdvanced,  [navItem("dialog", "Dialog 对话框"), navItem("image", "Image 图片"), navItem("contextmenu", "ContextMenu")]),
+                    navCategory("框架特性",   catFramework, [navItem("reactive", "响应式绑定"), navItem("tooltip", "ToolTip 提示"), navItem("style", "Style 样式")])
                 ]
             })}),
 
@@ -372,7 +445,7 @@ return window({
                 "spacing" = 16, "padding" = 24,
                 "children" = [
                     label({"text" = "控件画廊", "class" = "pageTitle"}),
-                    label({"text" = "20 种控件 + 响应式特性  |  QQ群 955830545", "class" = "pageSub"}),
+                    label({"text" = "22 种控件 + 响应式特性  |  QQ群 955830545", "class" = "pageSub"}),
                     border({"class" = "divider", "height" = 1}),
                     stackpanel({"spacing" = 0, "children" = [
                         vif(isPage("label"),       demoLabel()),
@@ -392,6 +465,8 @@ return window({
                         vif(isPage("tabcontrol"),  demoTabControl()),
                         vif(isPage("dialog"),      demoDialog()),
                         vif(isPage("image"),       demoImage()),
+                        vif(isPage("expander"),   demoExpander()),
+                        vif(isPage("contextmenu"),demoContextMenu()),
                         vif(isPage("reactive"),    demoReactive()),
                         vif(isPage("tooltip"),     demoTooltip()),
                         vif(isPage("style"),       demoStyle())

@@ -41,6 +41,9 @@ public static class ControlMeta
         public const string TimePicker = "timepicker";
         public const string Slider = "slider";
         public const string ProgressBar = "progressbar";
+        public const string Expander = "expander";
+        public const string MenuItem = "menuitem";
+        public const string Separator = "separator";
     }
 
     /// <summary>控件属性名前缀（用于识别 setter 方法）</summary>
