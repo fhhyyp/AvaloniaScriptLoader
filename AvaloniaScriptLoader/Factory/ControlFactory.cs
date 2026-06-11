@@ -113,7 +113,7 @@ public static class ControlFactory
 
     public static FunctionValue CreateMenuItemFactory() =>
         new("menuitem", args => BuildDescriptor(ControlMeta.Types.MenuItem, args,
-            ["header", "icon", "isChecked", "items", "onClick"]));
+            ["header", "icon", "isChecked", "items", "foreground", "background", "onClick"]));
 
     public static FunctionValue CreateSeparatorFactory() =>
         new("separator", args => BuildDescriptor(ControlMeta.Types.Separator, args,
@@ -130,6 +130,10 @@ public static class ControlFactory
     public static FunctionValue CreateNavMenuGroupFactory() =>
         new("navmenugroup", args => BuildDescriptor(ControlMeta.Types.NavMenuGroup, args,
             ["header", "isExpanded", "fontSize", "items"]));
+
+    public static FunctionValue CreateMenuFactory() =>
+        new("menu", args => BuildDescriptor(ControlMeta.Types.Menu, args,
+            ["items"]));
 
     // ============================================================================
     // 核心构建逻辑

@@ -288,18 +288,20 @@ public class PropertyBinder
                     control.AddHandler(InputElement.PointerPressedEvent, (s, e) =>
                     {
                         var e2 = e as PointerPressedEventArgs;
-                        if (e2?.GetCurrentPoint(control).Properties.IsLeftButtonPressed == true)
-                        {
-                            var w = TopLevel.GetTopLevel(control) as Window;
-                            if (w == null) return;
-                            w.BeginMoveDrag(e2);
+                        if (e2?.GetCurrentPoint(control).Properties.IsLeftButtonPressed != true)
+                            return;
 
-                            // Avalonia 12: BeginMoveDrag 只需 PointerPressedEventArgs
-                            /*var dragMethod = typeof(Window).GetMethod("BeginMoveDrag",
-                                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
-                            if (dragMethod != null)
-                                dragMethod.Invoke(w, [e2]);*/
+                        // 如果点击的是子控件（Button/MenuItem 等），跳过拖拽
+                        var src = e2.Source as Control;
+                        while (src != null && src != control)
+                        {
+                            if (src is Button or MenuItem)
+                                return; // 点到了交互控件，不拖拽
+                            src = src.Parent as Control;
                         }
+
+                        var w = TopLevel.GetTopLevel(control) as Window;
+                        w?.BeginMoveDrag(e2);
                     });
                 }
                 break;
@@ -340,6 +342,8 @@ public class PropertyBinder
             ApplyComboBoxProperty(comboBox, name, value);
         else if (control is ListBox listBox)
             ApplyListBoxProperty(listBox, name, value);
+        else if (control is MenuItem menuItem)
+            ApplyMenuItemProperty(menuItem, name, value);
         else if (control is StackPanel stackPanel)
             ApplyStackPanelProperty(stackPanel, name, value);
         else if (control is Grid grid)
@@ -809,6 +813,31 @@ public class PropertyBinder
                         .ToList();
                     listBox.ItemsSource = items;
                 }
+                break;
+        }
+    }
+
+    // ========================================================================
+    // MenuItem
+    // ========================================================================
+    private static void ApplyMenuItemProperty(MenuItem menuItem, string name, Value value)
+    {
+        switch (name)
+        {
+            case "header":
+                menuItem.Header = value.AsString();
+                break;
+            case "icon":
+                menuItem.Icon = new TextBlock { Text = value.AsString(), FontSize = 14 };
+                break;
+            case "isChecked":
+                menuItem.IsChecked = value.AsBool();
+                break;
+            case "foreground":
+                menuItem.Foreground = ToBrush(value);
+                break;
+            case "background":
+                menuItem.Background = ToBrush(value);
                 break;
         }
     }

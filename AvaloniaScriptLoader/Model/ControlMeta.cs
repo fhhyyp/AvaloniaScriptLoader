@@ -47,6 +47,7 @@ public static class ControlMeta
         public const string NavMenu = "navmenu";
         public const string NavMenuItem = "navmenuitem";
         public const string NavMenuGroup = "navmenugroup";
+        public const string Menu = "menu";
     }
 
     /// <summary>控件属性名前缀（用于识别 setter 方法）</summary>

@@ -1,4 +1,7 @@
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Layout;
+using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using ScriptLang.Runtime;
@@ -110,6 +113,14 @@ public static class AvaloniaModule
                 {
                     MainWindow?.Close();
                 });
+            }),
+
+            // === toast(message, type?) — 非阻塞通知提示 ===
+            ["toast"] = new FunctionValue("toast", args =>
+            {
+                var msg = args.FirstOrDefault()?.AsString() ?? "";
+                var type = args.Count > 1 ? args[1].AsString() : "info";
+                ShowToast(msg, type);
             }),
         });
     }
@@ -263,7 +274,6 @@ public static class AvaloniaModule
     private static List<FilePickerFileType>? ParseFileFilters(Value filterValue)
     {
         if (filterValue.AsString() is not string s || string.IsNullOrEmpty(s)) return null;
-        // 格式: "描述|*.ext|描述2|*.ext2" 或 "所有文件|*.*"
         var parts = s.Split('|');
         var result = new List<FilePickerFileType>();
         for (int i = 0; i + 1 < parts.Length; i += 2)
@@ -273,5 +283,62 @@ public static class AvaloniaModule
             result.Add(new FilePickerFileType(desc) { Patterns = [.. patterns] });
         }
         return result;
+    }
+
+    // ============================================================================
+    // Toast 通知
+    // ============================================================================
+
+    private static int _toastOffset = 0;
+
+    private static void ShowToast(string message, string type)
+    {
+        Dispatcher.UIThread.Post(async () =>
+        {
+            if (MainWindow?.Content is not Grid rootGrid || rootGrid.Children.Count < 2)
+                return;
+
+            // 叠加层 = rootGrid.Children[1]（Grid overlay layer）
+            var overlay = rootGrid.Children[1] as Panel;
+            if (overlay == null) return;
+
+            var (fg, bg, icon) = type switch
+            {
+                "success" => ("#166534", "#dcfce7", "✅"),
+                "warning" => ("#854d0e", "#fef9c3", "⚠️"),
+                "error"   => ("#991b1b", "#fee2e2", "❌"),
+                _         => ("#1e40af", "#dbeafe", "ℹ️"),
+            };
+
+            var toast = new Border
+            {
+                Background = Brush.Parse(bg),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(14, 8),
+                Margin = new Thickness(0, 8 + _toastOffset, 0, 0),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Top,
+                Child = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    Spacing = 8,
+                    Children =
+                    {
+                        new TextBlock { Text = icon, FontSize = 14, VerticalAlignment = VerticalAlignment.Center },
+                        new TextBlock { Text = message, FontSize = 12, Foreground = Brush.Parse(fg), VerticalAlignment = VerticalAlignment.Center },
+                    }
+                }
+            };
+
+            _toastOffset += 44;
+            overlay.Children.Add(toast);
+
+            // 停留 3 秒后淡出移除
+            await Task.Delay(3000);
+            toast.Opacity = 0;
+            await Task.Delay(300); // 短暂过渡
+            overlay.Children.Remove(toast);
+            _toastOffset -= 44;
+        });
     }
 }

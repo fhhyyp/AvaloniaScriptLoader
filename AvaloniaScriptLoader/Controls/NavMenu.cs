@@ -8,18 +8,22 @@ using Avalonia.Layout;
 namespace AvaloniaScriptLoader.Controls;
 
 /// <summary>
-/// 现代化垂直导航菜单 — 继承 ScrollViewer，内部 StackPanel
+/// 现代化垂直导航菜单 — Decorator 内嵌真实 ScrollViewer，避免 Fluent 主题模板匹配问题
 /// </summary>
-public class NavMenu : ScrollViewer
+public class NavMenu : Decorator
 {
     private readonly StackPanel _panel;
 
     public NavMenu()
     {
         _panel = new StackPanel();
-        VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
-        HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled;
-        Content = _panel;
+        Child = new ScrollViewer
+        {
+            Content = _panel,
+            Background = Brushes.Transparent,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+        };
     }
 
     internal void AddItem(Control item)

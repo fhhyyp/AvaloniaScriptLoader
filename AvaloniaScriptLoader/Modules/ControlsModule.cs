@@ -43,6 +43,7 @@ public static class ControlsModule
             ["navmenu"]      = ControlFactory.CreateNavMenuFactory(),
             ["navmenuitem"]  = ControlFactory.CreateNavMenuItemFactory(),
             ["navmenugroup"] = ControlFactory.CreateNavMenuGroupFactory(),
+            ["menu"]         = ControlFactory.CreateMenuFactory(),
         };
 
         return new ObjectValue(properties);

@@ -231,6 +231,9 @@ public class ControlBuilder
         ControlMeta.Types.NavMenu     => new NavMenu(),
         ControlMeta.Types.NavMenuItem => new NavMenuItem(),
         ControlMeta.Types.NavMenuGroup => new NavMenuGroup(),
+        ControlMeta.Types.Menu         => new Menu(),
+        ControlMeta.Types.MenuItem     => new MenuItem(),
+        ControlMeta.Types.Separator    => new Separator(),
         _ => throw new ArgumentException($"未知控件类型: '{type}'"),
     };
 
@@ -296,6 +299,12 @@ public class ControlBuilder
             case TabControl tab:
                 tab.Items.Add(child);
                 break;
+            case Menu menu:
+                ((Avalonia.Controls.Menu)menu).Items.Add(child);
+                break;
+            case MenuItem menuItem:
+                menuItem.Items.Add(child);
+                break;
             case Panel panel:
                 panel.Children.Add(child);
                 break;
@@ -342,6 +351,13 @@ public class ControlBuilder
                         try { await clickFunc.CallAsync(engine, [clickArgs]); }
                         catch (Exception ex) { LogEventError("onClick", ex); }
                     };
+                    break;
+                case MenuItem menuItem:
+                    menuItem.AddHandler(MenuItem.ClickEvent, async (s, e) =>
+                    {
+                        try { await clickFunc.CallAsync(engine, [clickArgs]); }
+                        catch (Exception ex) { LogEventError("onClick", ex); }
+                    }, handledEventsToo: true);
                     break;
                 default:
                     control.Tapped += async (s, e) =>
