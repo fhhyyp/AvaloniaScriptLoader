@@ -40,6 +40,9 @@ public static class ControlsModule
             ["expander"]     = ControlFactory.CreateExpanderFactory(),
             ["menuitem"]     = ControlFactory.CreateMenuItemFactory(),
             ["separator"]    = ControlFactory.CreateSeparatorFactory(),
+            ["navmenu"]      = ControlFactory.CreateNavMenuFactory(),
+            ["navmenuitem"]  = ControlFactory.CreateNavMenuItemFactory(),
+            ["navmenugroup"] = ControlFactory.CreateNavMenuGroupFactory(),
         };
 
         return new ObjectValue(properties);

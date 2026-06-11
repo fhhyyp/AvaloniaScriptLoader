@@ -3,28 +3,13 @@
 //  展示全部 22 种控件 + 响应式特性 + 实际场景示例
 // ═══════════════════════════════════════════════════════════
 import { app, inpc, computed, vif } from "avalonia"
-import { window, grid, stackpanel, button, label, textbox, checkbox, combobox, listbox, slider, progressbar, datepicker, timepicker, border, image, scrollviewer, tabcontrol, tabitem, dialog, expander, menuitem, separator } from "avalonia.controls"
+import { window, grid, stackpanel, button, label, textbox, checkbox, combobox, listbox, slider, progressbar, datepicker, timepicker, border, image, scrollviewer, tabcontrol, tabitem, dialog, expander, menuitem, separator, navmenu, navmenuitem, navmenugroup } from "avalonia.controls"
 import { _loaded } from "styles.script"
 
 var currentPage = inpc("label")
 
 // 当前页是否匹配（供 navItem 使用，必须定义在 navItem 前）
 let isPage = (id) => computed(() => currentPage.get() == id)
-
-let navItem = (id, text) => {
-    var active = isPage(id)
-    return border({
-        "cornerRadius" = 4,
-        "padding" = "6,12",
-        "background" = computed(() => { if (active.get()) { return "#6366f1" } return "#dddddd" }),
-        "onClick" = () => { currentPage.set(id) },
-        "content" = label({
-            "text" = text,
-            "fontSize" = 12,
-            "color" = computed(() => { if (active.get()) { return "#ffffff" } return "#94a3b8" })
-        })
-    })
-}
 
 let demoSection = (title, desc, demoContent) => {
     return stackpanel({"spacing" = 10, "children" = [
@@ -412,42 +397,62 @@ var catFramework = computed(() => {
     return false
 })
 
-let navCategory = (title, isExpanded, items) => {
-    return expander({
-        "minWitdh" = 200,
-        "header" = label({"text" = title, "fontSize" = 11, "color" = "#94a3b8"}),
-        "isExpanded" = isExpanded,
-        "expandDirection" = "down",
-        "content" = stackpanel({"spacing" = 2, "children" = items})
-    })
-}
-
 // ═══ 主窗口 ═══
-return window({
+return 
+window({
     "title" = "AvaloniaScriptLoader — 控件画廊",
     "width" = 880, "height" = 620,
     "content" = grid({
         "rows" = ["*"], "cols" = [160, "*"],
         "children" = [
-            scrollviewer({"col" = 0, "content" = stackpanel({
-                "class" = "sidebar", "spacing" = 0,
-                "children" = [
-                    navCategory("基础控件",   catBasic,     [navItem("label", "Label 标签"), navItem("button", "Button 按钮"), navItem("textbox", "TextBox 输入")]),
-                    navCategory("选择控件",   catSelect,    [navItem("checkbox", "CheckBox 复选"), navItem("combobox", "ComboBox 下拉"), navItem("listbox", "ListBox 列表"), navItem("slider", "Slider 滑块")]),
-                    navCategory("进度与日期", catProgress,  [navItem("progressbar", "ProgressBar"), navItem("datepicker", "DatePicker"), navItem("timepicker", "TimePicker")]),
-                    navCategory("容器与布局", catLayout,    [navItem("border", "Border 边框"), navItem("scrollviewer", "ScrollViewer"), navItem("stackpanel", "StackPanel"), navItem("grid", "Grid 网格"), navItem("tabcontrol", "TabControl"), navItem("expander", "Expander")]),
-                    navCategory("高级",       catAdvanced,  [navItem("dialog", "Dialog 对话框"), navItem("image", "Image 图片"), navItem("contextmenu", "ContextMenu")]),
-                    navCategory("框架特性",   catFramework, [navItem("reactive", "响应式绑定"), navItem("tooltip", "ToolTip 提示"), navItem("style", "Style 样式")])
-                ]
-            })}),
+            border({"col" = 0, "background" = "#0f172a", "padding" = 10,
+                "content" = navmenu({"items" = [
+                    navmenugroup({"header" = "基础控件", "fontSize" = 16, "isExpanded" = catBasic, "items" = [
+                        navmenuitem({"text" = "Label 标签" ,  "active" = isPage("label"),       "onClick" = () => { currentPage.set("label") }}),
+                        navmenuitem({"text" = "Button 按钮",  "active" = isPage("button"),      "onClick" = () => { currentPage.set("button") }}),
+                        navmenuitem({"text" = "TextBox 输入", "active" = isPage("textbox"),     "onClick" = () => { currentPage.set("textbox") }})
+                    ]}),
+                    navmenugroup({"header" = "选择控件", "fontSize" = 16, "isExpanded" = catSelect, "items" = [
+                        navmenuitem({"text" = "CheckBox 复选", "active" = isPage("checkbox"),  "onClick" = () => { currentPage.set("checkbox") }}),
+                        navmenuitem({"text" = "ComboBox 下拉", "active" = isPage("combobox"),  "onClick" = () => { currentPage.set("combobox") }}),
+                        navmenuitem({"text" = "ListBox 列表" , "active" = isPage("listbox"),   "onClick" = () => { currentPage.set("listbox") }}),
+                        navmenuitem({"text" = "Slider 滑块"  , "active" = isPage("slider"),    "onClick" = () => { currentPage.set("slider") }})
+                    ]}),
+                    navmenugroup({"header" = "进度与日期", "fontSize" = 16, "isExpanded" = catProgress, "items" = [
+                        navmenuitem({"text" = "ProgressBar", "active" = isPage("progressbar"), "onClick" = () => { currentPage.set("progressbar") }}),
+                        navmenuitem({"text" = "DatePicker" , "active" = isPage("datepicker"),  "onClick" = () => { currentPage.set("datepicker") }}),
+                        navmenuitem({"text" = "TimePicker" , "active" = isPage("timepicker"),  "onClick" = () => { currentPage.set("timepicker") }})
+                    ]}),
+                    navmenugroup({"header" = "容器与布局", "fontSize" = 16, "isExpanded" = catLayout, "items" = [
+                        navmenuitem({"text" = "Border 边框"   , "active" = isPage("border"),       "onClick" = () => { currentPage.set("border") }}),
+                        navmenuitem({"text" = "ScrollViewer"  , "active" = isPage("scrollviewer"), "onClick" = () => { currentPage.set("scrollviewer") }}),
+                        navmenuitem({"text" = "StackPanel"    , "active" = isPage("stackpanel"),   "onClick" = () => { currentPage.set("stackpanel") }}),
+                        navmenuitem({"text" = "Grid 网格"     , "active" = isPage("grid"),         "onClick" = () => { currentPage.set("grid") }}),
+                        navmenuitem({"text" = "TabControl"    , "active" = isPage("tabcontrol"),   "onClick" = () => { currentPage.set("tabcontrol") }}),
+                        navmenuitem({"text" = "Expander"      , "active" = isPage("expander"),     "onClick" = () => { currentPage.set("expander") }})
+                    ]}),
+                    navmenugroup({"header" = "高级", "fontSize" = 16, "isExpanded" = catAdvanced, "items" = [
+                        navmenuitem({"text" = "Dialog 对话框", "active" = isPage("dialog"),      "onClick" = () => { currentPage.set("dialog") }}),
+                        navmenuitem({"text" = "Image 图片"   , "active" = isPage("image"),       "onClick" = () => { currentPage.set("image") }}),
+                        navmenuitem({"text" = "ContextMenu"  , "active" = isPage("contextmenu"), "onClick" = () => { currentPage.set("contextmenu") }})
+                    ]}),
+                    navmenugroup({"header" = "框架特性", "fontSize" = 16, "isExpanded" = catFramework, "items" = [
+                        navmenuitem({"text" = "响应式绑定" , "active" = isPage("reactive"), "onClick" = () => { currentPage.set("reactive") }}),
+                        navmenuitem({"text" = "ToolTip 提示", "active" = isPage("tooltip"),  "onClick" = () => { currentPage.set("tooltip") }}),
+                        navmenuitem({"text" = "Style 样式"  , "active" = isPage("style"),    "onClick" = () => { currentPage.set("style") }})
+                    ]})
+                ]}),
+            }),
+
+
 
             scrollviewer({"col" = 1, "content" = stackpanel({
                 "spacing" = 16, "padding" = 24,
                 "children" = [
-                    label({"text" = "控件画廊", "class" = "pageTitle"}),
-                    label({"text" = "22 种控件 + 响应式特性  |  QQ群 955830545", "class" = "pageSub"}),
+                    label({"text" = "控件画廊", "margin" = "18, 0, 0, 24", "class" = "pageTitle"}),
+                    label({"text" = "22 种控件 + 响应式特性", "margin" = "0, 0, 0, 24", "class" = "pageSub"}),
                     border({"class" = "divider", "height" = 1}),
-                    stackpanel({"spacing" = 0, "children" = [
+                    stackpanel({"spacing" = 0, "margin" = "0, 0, 0, 24", "children" = [
                         vif(isPage("label"),       demoLabel()),
                         vif(isPage("button"),      demoButton()),
                         vif(isPage("textbox"),     demoTextBox()),

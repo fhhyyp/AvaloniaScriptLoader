@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Threading;
 using ScriptLang.Runtime;
+using AvaloniaScriptLoader.Controls;
 using AvaloniaScriptLoader.Factory;
 using AvaloniaScriptLoader.Model;
 using AvaloniaScriptLoader.Wrapper;
@@ -135,21 +136,30 @@ public class ControlBuilder
             }
         }
 
-        // 7. 递归处理 items（TabControl / ListBox 等集合型控件）
-        if (descriptor.Properties.TryGetValue("items", out var itemsValue)
+        // 7. 递归处理 items（TabControl / ListBox / NavMenu 等集合型控件）
+        // NavMenuGroup 的 items 由父级 NavMenu 内联处理，此处跳过
+        if (type != ControlMeta.Types.NavMenuGroup
+            && descriptor.Properties.TryGetValue("items", out var itemsValue)
             && itemsValue is ArrayValue items)
         {
-            foreach (var itemDesc in items.Elements)
+            if (control is NavMenu navMenu)
             {
-                if (itemDesc is ObjectValue itemObj)
+                ProcessNavMenuItems(navMenu, items);
+            }
+            else
+            {
+                foreach (var itemDesc in items.Elements)
                 {
-                    var itemControl = BuildInternal(itemObj);
-                    AddChild(control, itemControl, itemObj);
+                    if (itemDesc is ObjectValue itemObj)
+                    {
+                        var itemControl = BuildInternal(itemObj);
+                        AddChild(control, itemControl, itemObj);
+                    }
                 }
             }
         }
 
-        // 8. 处理 header 属性为控件描述符（Expander / TabItem 等）
+        // 8. 处理 header 属性为控件描述符（Expander / TabItem / NavMenuGroup 等）
         if (descriptor.Properties.TryGetValue("header", out var headerValue)
             && headerValue is ObjectValue headerObj)
         {
@@ -158,6 +168,8 @@ public class ControlBuilder
                 expander.Header = headerControl;
             else if (control is TabItem ti)
                 ti.Header = headerControl;
+            else if (control is NavMenuGroup navGroup)
+                navGroup.SetHeaderControl(headerControl);
         }
 
         // 9. 处理 contextMenu 右键菜单（附加属性，独立构建路径）
@@ -208,6 +220,9 @@ public class ControlBuilder
         ControlMeta.Types.Slider     => new Slider(),
         ControlMeta.Types.ProgressBar => new ProgressBar(),
         ControlMeta.Types.Expander   => new Expander(),
+        ControlMeta.Types.NavMenu     => new NavMenu(),
+        ControlMeta.Types.NavMenuItem => new NavMenuItem(),
+        ControlMeta.Types.NavMenuGroup => new NavMenuGroup(),
         _ => throw new ArgumentException($"未知控件类型: '{type}'"),
     };
 
@@ -275,6 +290,9 @@ public class ControlBuilder
                 break;
             case Panel panel:
                 panel.Children.Add(child);
+                break;
+            case ListBox listBox:
+                listBox.Items.Add(child);
                 break;
             case Decorator decorator:
                 decorator.Child = child;
@@ -756,6 +774,60 @@ public class ControlBuilder
                 }
 
                 items.Add(menuItem);
+            }
+        }
+    }
+
+    // ========================================================================
+    // NavMenu 分组项处理（内联展开 navmenugroup → items）
+    // ========================================================================
+
+    /// <summary>
+    /// 为 NavMenu 处理 items 数组（两层展开）：
+    ///   navmenugroup → 构建分组头，并逐条构建其嵌套 items 中的 navmenuitem
+    ///   navmenuitem → 构建菜单项，注册到当前分组（如有）
+    /// </summary>
+    private void ProcessNavMenuItems(NavMenu navMenu, ArrayValue items)
+    {
+        NavMenuGroup? currentGroup = null;
+
+        foreach (var itemDesc in items.Elements)
+        {
+            if (itemDesc is not ObjectValue itemObj) continue;
+            var childType = itemObj.Properties[ControlMeta.TypeKey].AsString();
+
+            if (childType == ControlMeta.Types.NavMenuGroup)
+            {
+                var group = (NavMenuGroup)BuildInternal(itemObj);
+                currentGroup = group;
+                navMenu.AddItem(group);
+
+                // 展开分组内嵌套的 navmenuitem 子项
+                if (itemObj.Properties.TryGetValue("items", out var groupItems)
+                    && groupItems is ArrayValue groupItemsArr)
+                {
+                    foreach (var nestedDesc in groupItemsArr.Elements)
+                    {
+                        if (nestedDesc is ObjectValue nestedObj
+                            && nestedObj.Properties[ControlMeta.TypeKey].AsString() == ControlMeta.Types.NavMenuItem)
+                        {
+                            var menuItem = (NavMenuItem)BuildInternal(nestedObj);
+                            currentGroup.AddChild(menuItem);
+                            navMenu.AddItem(menuItem);
+                        }
+                    }
+                }
+            }
+            else if (childType == ControlMeta.Types.NavMenuItem)
+            {
+                var menuItem = (NavMenuItem)BuildInternal(itemObj);
+                currentGroup?.AddChild(menuItem);
+                navMenu.AddItem(menuItem);
+            }
+            else
+            {
+                var itemControl = BuildInternal(itemObj);
+                navMenu.AddItem(itemControl);
             }
         }
     }
