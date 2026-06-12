@@ -263,20 +263,17 @@ public class ControlBuilder
         ControlMeta.Types.NavMenuItem => new NavMenuItem(),
         ControlMeta.Types.NavMenuGroup => new NavMenuGroup(),
         ControlMeta.Types.Menu         => new Menu(),
+        ControlMeta.Types.DataTable   => new DataTable(),
         ControlMeta.Types.MenuItem     => new MenuItem(),
         ControlMeta.Types.Separator    => new Separator(),
         _ => throw new ArgumentException($"未知控件类型: '{type}'"),
     };
 
-    /// <summary>
-    /// 反射创建 DataGrid（避免硬依赖 Avalonia.Controls.DataGrid NuGet 包）
-    /// </summary>
     private static Control CreateDataGridReflection()
     {
         var dgType = Type.GetType("Avalonia.Controls.DataGrid, Avalonia.Controls.DataGrid");
         if (dgType != null)
             return (Control)Activator.CreateInstance(dgType)!;
-        // 回退：如果未安装 DataGrid 包，返回 TextBlock 提示
         return new TextBlock { Text = "[DataGrid: 请安装 Avalonia.Controls.DataGrid 包]" };
     }
 

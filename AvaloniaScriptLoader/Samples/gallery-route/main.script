@@ -27,6 +27,7 @@ var pages = {
     "dialog"=      { file = "demos/dialog.script",      cat = "advanced" },
     "image"=       { file = "demos/image.script",       cat = "advanced" },
     "contextmenu"= { file = "demos/contextmenu.script", cat = "advanced" },
+    "datatable"=   { file = "demos/datatable.script",   cat = "advanced" },
     "reactive"=    { file = "demos/reactive.script",    cat = "framework" },
     "tooltip"=     { file = "demos/tooltip.script",     cat = "framework" },
     "style"=       { file = "demos/style.script",       cat = "framework" },
@@ -126,6 +127,7 @@ let main = window({
                             navmenuitem({text = "Dialog 对话框", onClick = () => { loadPage("dialog") }}),
                             navmenuitem({text = "Image 图片", onClick = () => { loadPage("image") }}),
                             navmenuitem({text = "ContextMenu", onClick = () => { loadPage("contextmenu") }}),
+						navmenuitem({text = "DataTable 表格", onClick = () => { loadPage("datatable") }}),
                         ]}),
                         navmenugroup({header = "框架特性", fontSize = 16, isExpanded = pageIn("framework"), items = [
                             navmenuitem({text = "响应式绑定", onClick = () => { loadPage("reactive") }}),

@@ -1,0 +1,65 @@
+import { inpc, computed } from "avalonia"
+import { stackpanel, label, button, textbox, border, datatable } from "avalonia.controls"
+
+var title = "DataTable 数据表"
+var desc = "原生控件 — 可编辑表格 + inpc 数据绑定 + 斑马纹 + 列定义"
+
+var rows = inpc([
+    { name = "张三", email = "zhang@test.com", role = "管理员", note = "—" },
+    { name = "李四", email = "li@test.com",   role = "编辑",   note = "—" },
+    { name = "王五", email = "wang@test.com", role = "作者",   note = "—" },
+    { name = "赵六", email = "zhao@test.com", role = "读者",   note = "—" },
+], "twoway")
+
+var nameInput  = inpc("", "twoway")
+var emailInput = inpc("", "twoway")
+var roleInput  = inpc("读者", "twoway")
+
+var addRow = () => {
+    var arr = rows.get()
+    arr = arr + [{ name = nameInput.get(), email = emailInput.get(),
+        role = roleInput.get(), note = "—" }]
+    rows.set(arr)
+}
+
+var removeLast = () => {
+    var arr = rows.get()
+    if (len(arr) > 0) {
+        var copy = []
+        for i in range(0, len(arr) - 1) { copy = copy + [arr[i]] }
+        rows.set(copy)
+    }
+}
+
+var render = () => stackpanel({spacing = 10, children = [
+    // 新增行表单
+    border({background = "#f1f5f9", padding = 10, cornerRadius = 6,
+        content = grid({cols = ["*", "*", "120", "80"], children = [
+            textbox({col = 0, text = nameInput, placeholder = "姓名", margin = "2"}),
+            textbox({col = 1, text = emailInput, placeholder = "邮箱", margin = "2"}),
+            textbox({col = 2, text = roleInput, placeholder = "角色", margin = "2"}),
+            button({col = 3, text = "+ 添加", class = "btnPrimary", fontSize = 12,
+                onClick = () => { addRow() }}),
+        ]})
+    }),
+
+    // 原生 DataTable
+    datatable({
+        height = 240,
+        columns = [
+            { header = "姓名", binding = "name", width = "*" },
+            { header = "邮箱", binding = "email", width = "*" },
+            { header = "角色", binding = "role", width = "120" },
+            { header = "备注", binding = "note", width = "80" },
+        ],
+        items = rows,
+    }),
+
+    // 操作栏
+    stackpanel({orientation = "horizontal", spacing = 8, children = [
+        button({text = "🗑 删除末行", onClick = () => { removeLast() }}),
+        label({text = computed(() => "共 " + str(len(rows.get())) + " 行"),
+            fontSize = 11, color = "#64748b"}),
+    ]}),
+]})
+return { title, desc, render }

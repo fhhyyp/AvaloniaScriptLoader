@@ -16,7 +16,6 @@
     <PackageReference Include="Avalonia.Desktop" Version="12.0.4" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.4" />
     <PackageReference Include="Avalonia.Fonts.Inter" Version="12.0.4" />
-    <!-- Avalonia.Diagnostics 12.x 尚未发布独立包，DevTools 已内置到 Avalonia 核心 -->
   </ItemGroup>
 
   <ItemGroup>

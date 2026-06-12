@@ -5,6 +5,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
 using ScriptLang.Runtime;
+using AvaloniaScriptLoader.Controls;
 using AvaloniaScriptLoader.Factory;
 using AvaloniaScriptLoader.Model;
 
@@ -329,7 +330,7 @@ public class PropertyBinder
     private void ApplyControlSpecific(Control control, string name, Value value)
     {
         name = NormalizeProp(name);
-        // 使用 if/else 链而非 switch 模式匹配，避免 Avalonia 12.x 类层次冲突
+        // 使用 if/else 链而非 switch 模式匹配
         if (control is Window window)
             ApplyWindowProperty(window, name, value);
         else if (control is TextBox textBox)
@@ -346,6 +347,8 @@ public class PropertyBinder
             ApplyMenuItemProperty(menuItem, name, value);
         else if (control is StackPanel stackPanel)
             ApplyStackPanelProperty(stackPanel, name, value);
+        else if (control is DataTable table)
+            ApplyDataTableProperty(table, name, value);
         else if (control is Grid grid)
             ApplyGridProperty(grid, name, value);
         else if (control is Image image)
@@ -586,7 +589,23 @@ public class PropertyBinder
     }
 
     // ========================================================================
-    // DataGrid（反射实现，无 Avalonia.Controls.DataGrid 包依赖）
+    // ========================================================================
+    // DataTable
+    // ========================================================================
+    private static void ApplyDataTableProperty(DataTable table, string name, Value value)
+    {
+        switch (name)
+        {
+            case "columns":
+                if (value is ArrayValue cols) table.SetColumns(cols);
+                break;
+            case "items":
+                if (value is ArrayValue av) table.SetItems(av);
+                break;
+        }
+    }
+
+    // DataGrid（反射实现，无 NuGet 包依赖）
     // ========================================================================
     private static void ApplyDataGridByReflection(Control control, string name, Value value)
     {
@@ -621,7 +640,6 @@ public class PropertyBinder
                                     ? h.AsString() : "";
                                 var binding = colObj.Properties.TryGetValue("binding", out var b)
                                     ? b.AsString() : header;
-
                                 var col = Activator.CreateInstance(dgtcType)!;
                                 dgtcType.GetProperty("Header")?.SetValue(col, header);
                                 var bType = Type.GetType("Avalonia.Data.Binding, Avalonia.Base");

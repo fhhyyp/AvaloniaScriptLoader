@@ -135,6 +135,10 @@ public static class ControlFactory
         new("menu", args => BuildDescriptor(ControlMeta.Types.Menu, args,
             ["items"]));
 
+    public static FunctionValue CreateDataTableFactory() =>
+        new("datatable", args => BuildDescriptor(ControlMeta.Types.DataTable, args,
+            ["columns", "items"]));
+
     // ============================================================================
     // 核心构建逻辑
     // ============================================================================
