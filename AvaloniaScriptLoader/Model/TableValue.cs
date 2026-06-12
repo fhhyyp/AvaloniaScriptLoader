@@ -40,7 +40,12 @@ public class TableValue : IDisposable
 
     public ObjectValue Table { get; private set; }
 
-    public TableValue(ArrayValue initial) { foreach (var e in initial.Elements) if (e is ObjectValue obj) _rows.Add(obj); Table = WrapTable(this); }
+    public TableValue(ArrayValue initial) 
+    { 
+        foreach (var e in initial.Elements) 
+            if (e is ObjectValue obj) _rows.Add(obj);
+        Table = WrapTable(this);
+    }
 
     private static ObjectValue WrapTable(TableValue tableInstance)
     {
