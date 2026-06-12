@@ -92,6 +92,9 @@ public class ControlBuilder
         // === 标准控件 ===
         var control = CreateNativeControl(type);
 
+        // 注入 ScriptEngine + Builder 到 DataTable（供模板列使用）
+        if (control is DataTable dt) { DataTable.Builder = this; DataTable.ScriptEngine = _adapter.Engine; }
+
         // 1. 应用初始属性
         _binder.ApplyInitialProperties(control, descriptor);
 

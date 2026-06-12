@@ -1,65 +1,116 @@
-import { inpc, computed } from "avalonia"
-import { stackpanel, label, button, textbox, border, datatable } from "avalonia.controls"
+import { app, inpc, computed, table } from "avalonia"
+import { stackpanel, label, button, border, datatable } from "avalonia.controls"
 
 var title = "DataTable 数据表"
-var desc = "原生控件 — 可编辑表格 + inpc 数据绑定 + 斑马纹 + 列定义"
+var desc = "内置分页 + table() + 模板列 + 选择模式"
 
-var rows = inpc([
-    { name = "张三", email = "zhang@test.com", role = "管理员", note = "—" },
-    { name = "李四", email = "li@test.com",   role = "编辑",   note = "—" },
-    { name = "王五", email = "wang@test.com", role = "作者",   note = "—" },
-    { name = "赵六", email = "zhao@test.com", role = "读者",   note = "—" },
-], "twoway")
+var seed = [
+    { name = "张三", email = "zhang@test.com", role = "管理员", age = "32", checked = false },
+    { name = "李四", email = "li@test.com",   role = "编辑",   age = "28", checked = false },
+    { name = "王五", email = "wang@test.com", role = "作者",   age = "35", checked = true  },
+    { name = "赵六", email = "zhao@test.com", role = "读者",   age = "22", checked = false },
+    { name = "孙七", email = "sun@test.com",  role = "读者",   age = "41", checked = false },
+    { name = "周八", email = "zhou@test.com", role = "编辑",   age = "29", checked = false },
+    { name = "吴九", email = "wu@test.com",   role = "作者",   age = "26", checked = true  },
+    { name = "郑十", email = "zheng@test.com",role = "管理员", age = "38", checked = false },
+]
+var allRows = table(seed)
+print(allRows)
+var isReadOnly = inpc(false, "twoway")
+var selMode = inpc("multiple", "twoway")
 
-var nameInput  = inpc("", "twoway")
-var emailInput = inpc("", "twoway")
-var roleInput  = inpc("读者", "twoway")
-
-var addRow = () => {
-    var arr = rows.get()
-    arr = arr + [{ name = nameInput.get(), email = emailInput.get(),
-        role = roleInput.get(), note = "—" }]
-    rows.set(arr)
+var selectedRows = inpc([])
+var refreshSelected = () => {
+    var result = []
+    var arr = allRows.get()
+    /* for i in range(0, len(arr)) 
+    { 
+        if (arr[i].checked) { 
+            result = result + [arr[i]] 
+        } 
+    } */
+    let arr2 = arr.where(x => x.checked)
+    len table2 = table(arr2)
+    selectedRows.set(result)
 }
 
-var removeLast = () => {
-    var arr = rows.get()
-    if (len(arr) > 0) {
-        var copy = []
-        for i in range(0, len(arr) - 1) { copy = copy + [arr[i]] }
-        rows.set(copy)
+var addRow = () => {
+    allRows.addRow({ 
+        name = "新用户", 
+        email = "new@test.com", 
+        role = "读者", 
+        age = "—", 
+        checked = false 
+    })
+    refreshSelected()
+}
+
+var removeRow = () => {
+    if (len(allRows.get()) > 0) { 
+        allRows.removeRow(len(allRows.get()) - 1)
+        refreshSelected() 
     }
 }
 
-var render = () => stackpanel({spacing = 10, children = [
-    // 新增行表单
-    border({background = "#f1f5f9", padding = 10, cornerRadius = 6,
-        content = grid({cols = ["*", "*", "120", "80"], children = [
-            textbox({col = 0, text = nameInput, placeholder = "姓名", margin = "2"}),
-            textbox({col = 1, text = emailInput, placeholder = "邮箱", margin = "2"}),
-            textbox({col = 2, text = roleInput, placeholder = "角色", margin = "2"}),
-            button({col = 3, text = "+ 添加", class = "btnPrimary", fontSize = 12,
-                onClick = () => { addRow() }}),
-        ]})
-    }),
+refreshSelected()
 
-    // 原生 DataTable
+var render = () => stackpanel({spacing = 10, children = [
+    // 主表格 — 内置分页 maxCount=5
     datatable({
-        height = 240,
+        height = 300,
+        maxCount = 5,
+        selectionMode = computed(() => selMode.get()),
+        selectionBinding = "checked",
+        isReadOnly = computed(() => isReadOnly.get()),
         columns = [
-            { header = "姓名", binding = "name", width = "*" },
-            { header = "邮箱", binding = "email", width = "*" },
-            { header = "角色", binding = "role", width = "120" },
-            { header = "备注", binding = "note", width = "80" },
+            { checkbox = true, width = "40" },
+            { header = "姓名", binding = "name", width = "*", sortable = true },
+            { header = "邮箱", binding = "email", width = "1.5*" },
+            { header = "角色", binding = "role", width = "100" },
+            { header = "年龄", binding = "age", width = "60", sortable = true },
+            { header = "操作", binding = "role", width = "80",
+                template = (val, row, idx) => button({text = "查看", fontSize = 11,
+                    onClick = () => { app.toast("行" + str(idx) + ": " + row.name) }})
+            },
         ],
-        items = rows,
+        items = allRows,
+        headerStyle = { bg = "#e2e8f0", fg = "#1e293b", fontSize = 13 },
+        selectedStyle = { bg = "#dbeafe", fg = "#1e40af" },
     }),
 
     // 操作栏
     stackpanel({orientation = "horizontal", spacing = 8, children = [
-        button({text = "🗑 删除末行", onClick = () => { removeLast() }}),
-        label({text = computed(() => "共 " + str(len(rows.get())) + " 行"),
-            fontSize = 11, color = "#64748b"}),
+        label({text = "选择:", fontSize = 11, color = "#64748b"}),
+        button({text = "无选", fontSize = 11,
+            background = computed(() => if selMode.get() == "none" then "#6366f1" else "#e2e8f0"),
+            color = computed(() => if selMode.get() == "none" then "#fff" else "#475569"),
+            onClick = () => { selMode.set("none") }}),
+        button({text = "单选", fontSize = 11,
+            background = computed(() => if selMode.get() == "single" then "#6366f1" else "#e2e8f0"),
+            color = computed(() => if selMode.get() == "single" then "#fff" else "#475569"),
+            onClick = () => { selMode.set("single") }}),
+        button({text = "多选", fontSize = 11,
+            background = computed(() => if selMode.get() == "multiple" then "#6366f1" else "#e2e8f0"),
+            color = computed(() => if selMode.get() == "multiple" then "#fff" else "#475569"),
+            onClick = () => { selMode.set("multiple") }}),
+        label({text = "  "}),
+        button({text = "➕ addRow", class = "btnPrimary", onClick = () => { addRow() }}),
+        button({text = "➖ removeRow", onClick = () => { removeRow() }}),
+        button({text = computed(() => if isReadOnly.get() then "🔓 编辑" else "🔒 只读"),
+            onClick = () => { isReadOnly.set(if isReadOnly.get() then false else true) }}),
     ]}),
+
+    // 已选项
+    label({text = computed(() => "✅ 已选项 (" + str(len(selectedRows.get())) + " 条)"), fontSize = 12, color = "#166534"}),
+    datatable({
+        height = 100,
+        columns = [
+            { header = "姓名", binding = "name", width = "*" },
+            { header = "邮箱", binding = "email", width = "1.5*" },
+            { header = "角色", binding = "role", width = "100" },
+        ],
+        //items = selectedRows,
+        headerStyle = { bg = "#dcfce7", fg = "#166534", fontSize = 12 },
+    }),
 ]})
 return { title, desc, render }

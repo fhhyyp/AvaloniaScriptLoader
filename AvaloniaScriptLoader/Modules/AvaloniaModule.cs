@@ -26,6 +26,7 @@ public static class AvaloniaModule
             ["app"]       = CreateAppObject(adapter),
             ["inpc"]      = InpcFactory.CreateInpcFunction(),
             ["computed"]  = InpcFactory.CreateComputedFunction(),
+            ["table"]     = InpcFactory.CreateTableFunction(),
             ["vif"]       = StructureFactory.CreateVifFunction(),
             ["vfor"]      = StructureFactory.CreateVforFunction(),
             ["component"] = StructureFactory.CreateComponentFunction(),

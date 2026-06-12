@@ -137,7 +137,7 @@ public static class ControlFactory
 
     public static FunctionValue CreateDataTableFactory() =>
         new("datatable", args => BuildDescriptor(ControlMeta.Types.DataTable, args,
-            ["columns", "items"]));
+            ["columns", "items", "isReadOnly", "selectionMode", "selectionBinding", "selectionOffset", "maxCount", "currentPage", "headerStyle", "rowStyle", "cellStyle", "selectedStyle"]));
 
     // ============================================================================
     // 核心构建逻辑

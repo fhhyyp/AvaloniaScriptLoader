@@ -58,6 +58,7 @@ public class PropertyBinder
     {
         var inpc = InpcFactory.ExtractInpc(wrapper);
         var computed = InpcFactory.ExtractComputed(wrapper);
+        var table = InpcFactory.ExtractTable(wrapper);
 
         // 获取初始值 + 订阅变更的统一处理
         Action<Value> updateAction = newValue =>
@@ -87,6 +88,12 @@ public class PropertyBinder
             // ComputedValue: 初始值 + 订阅（只读）
             SetControlProperty(control, propertyName, computed.Get());
             computed.OnChange(updateAction);
+        }
+        else if (table != null)
+        {
+            // TableValue: 初始值 + 订阅
+            SetControlProperty(control, propertyName, table.Table/*.Get()*/);
+            table.OnChange(updateAction);
         }
     }
 
@@ -596,12 +603,22 @@ public class PropertyBinder
     {
         switch (name)
         {
-            case "columns":
-                if (value is ArrayValue cols) table.SetColumns(cols);
-                break;
+            case "columns":  if (value is ArrayValue cols) table.SetColumns(cols); break;
             case "items":
-                if (value is ArrayValue av) table.SetItems(av);
+                if (value is ObjectValue obj 
+                    && obj.Properties.TryGetValue("__table", out var tvRef) 
+                    && tvRef is ClrObjectValue clr
+                    && clr.Value is TableValue tv)
+                    table.SetTableValue(tv);
                 break;
+            case "isReadOnly":      table.SetReadOnly(value.AsBool()); break;
+            case "selectionMode":   table.SetSelectionMode(value.AsString()); break;
+            case "selectionOffset": table.SetSelectionOffset((int)ToDouble(value)); break;
+            case "selectionBinding": table.SetSelectionBinding(value.AsString()); break;
+            case "maxCount": table.SetMaxCount((int)ToDouble(value)); break;
+            case "currentPage": table.SetCurrentPage((int)ToDouble(value)); break;
+            case "headerStyle": case "rowStyle": case "cellStyle": case "selectedStyle":
+                table.SetStyle(name, value); break;
         }
     }
 

@@ -151,7 +151,7 @@ public static class InpcFactory
 
         return new ObjectValue(descriptor);
     }
-
+    
     /// <summary>
     /// 将 ComputedValue 包装为脚本可用的 ObjectValue（只读，无 set）
     /// </summary>
@@ -163,7 +163,7 @@ public static class InpcFactory
             ["__computed"] = new ClrObjectValue(computedInstance),
             ["value"] = computedInstance.Get(),
         };
-
+        
         // get() → 返回当前计算值（触发依赖追踪）
         descriptor["get"] = new FunctionValue("get",
             () => computedInstance.Get());
@@ -171,6 +171,39 @@ public static class InpcFactory
         // 无 set() —— computed 是只读的
 
         return new ObjectValue(descriptor);
+    }
+
+    // ========================================================================
+    // table(initialArray) — 响应式表格数组
+    // ========================================================================
+
+    public static FunctionValue CreateTableFunction()
+    {
+        return new FunctionValue("table", args =>
+        {
+            if (args.Count < 1 || args[0] is not ArrayValue av)
+                throw new ArgumentException("table() 期望 1 个数组参数");
+            var tableInstance = new TableValue(av);
+            var table = tableInstance.Table;
+            return table;
+        });
+    }
+
+   
+
+    /// <summary>
+    /// 从包装对象中提取 TableValue
+    /// </summary>
+    public static TableValue? ExtractTable(Value value)
+    {
+        if (value is ObjectValue obj
+            && obj.Properties.TryGetValue("__table", out var tv)
+            && tv is ClrObjectValue clr
+            && clr.Value is TableValue table)
+        {
+            return table;
+        }
+        return null;
     }
 
     // ========================================================================
@@ -186,7 +219,7 @@ public static class InpcFactory
         if (!obj.Properties.TryGetValue(ControlMeta.TypeKey, out var type)) return false;
 
         var typeStr = type.AsString();
-        return typeStr is "inpc" or "inpc_twoway" or "computed";
+        return typeStr is "inpc" or "inpc_twoway" or "computed" or "table";
     }
 
     /// <summary>
