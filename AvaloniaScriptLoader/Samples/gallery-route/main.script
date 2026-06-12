@@ -94,10 +94,10 @@ let main = window({
             }),
             // ═══ 侧边栏 ═══
             border({row = 1, col = 0, background = "#0f172a", padding = 10,
-                content = stackpanel({spacing = 0, children = [
-                    label({text = "🧩 控件画廊", fontSize = 16, color = "#e2e8f0", margin = "4,0,0,12"}),
-                    label({text = "AvaloniaScriptLoader", fontSize = 10, color = "#64748b", margin = "0,0,0,10"}),
-                    navmenu({items = [
+                content = grid({rows = ["auto", "auto", "*"], children = [
+                    label({row = 0, text = "🧩 控件画廊", fontSize = 16, color = "#e2e8f0", margin = "4,0,0,12"}),
+                    label({row = 1, text = "AvaloniaScriptLoader", fontSize = 10, color = "#64748b", margin = "0,0,0,10"}),
+                    navmenu({row = 2, items = [
                         navmenugroup({header = "基础控件", fontSize = 16, isExpanded = pageIn("basic"), items = [
                             navmenuitem({text = "Label 标签", onClick = () => { loadPage("label") }}),
                             navmenuitem({text = "Button 按钮", onClick = () => { loadPage("button") }}),
