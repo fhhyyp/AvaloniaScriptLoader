@@ -50,6 +50,7 @@ public class DataTable : Grid
     private bool _hasCheckbox;
     private ICallable?[] _templates = [];
     private bool _updatingHeaderCheckbox = false;
+    private bool _suppressCellEvent = false;
     // Cached row controls: global data index → rendered controls on current page
     private readonly Dictionary<int, List<Control>> _rowControls = new();
 
@@ -385,9 +386,30 @@ public class DataTable : Grid
 
     private void OnCellChanged(object? _, TableRowEventArgs e)
     {
-        if (OnPage(e.RowIndex))
+        // 由选中操作 (SetSelected) 触发的 CellChanged 跳过，避免双重 FullRebuild
+        if (_suppressCellEvent) return;
+        if (!OnPage(e.RowIndex)) return;
+
+        // 增量更新：仅刷新被修改的那个单元格
+        if (!_rowControls.TryGetValue(e.RowIndex, out var controls)) return;
+        if (string.IsNullOrEmpty(e.Key)) return;
+
+        var colIndex = Array.IndexOf(_bindings, e.Key);
+        if (colIndex < 0) return;
+
+        // controls 列表布局: [cbCell?, dataCol0_cell, dataCol1_cell, ...]
+        var ctrlIndex = (_hasCheckbox ? 1 : 0) + (colIndex - _dataColOffset);
+        if (ctrlIndex < 0 || ctrlIndex >= controls.Count) return;
+
+        var cell = controls[ctrlIndex];
+        if (cell is Border border && border.Child is Control child)
         {
-            FullRebuild();
+            var newText = e.NewValue is StringValue s ? s.Value : e.NewValue?.AsString() ?? "";
+
+            if (child is TextBox tb && tb.Text != newText)
+                tb.Text = newText;
+            else if (child is TextBlock tbk)
+                tbk.Text = newText;
         }
     }
 
@@ -434,7 +456,10 @@ public class DataTable : Grid
                 if (_updatingHeaderCheckbox) return;  // 跳过由代码触发的事件
                 if (_selMode != SelectMode.None)
                 {
+                    //var o = _suppressCellEvent;
+                    //_suppressCellEvent = false;
                     ToggleAll(hcb.IsChecked == true);
+                    //_suppressCellEvent = o;
                 }
             };
 
@@ -668,7 +693,7 @@ public class DataTable : Grid
                     tb.TextChanged += (_, _) =>
                     {
                         var newText = tb.Text ?? "";
-                        var oldText = raw is StringValue os ? os.Value : raw.AsString();
+                        var oldText = capOld is StringValue os ? os.Value : raw.AsString();
 
                         if (newText == oldText)
                         {
@@ -870,12 +895,34 @@ public class DataTable : Grid
             : _selected.Contains(g);
     }
 
+    /// <summary>
+    /// 增量刷新单行的背景色与前景色（不重建控件）
+    /// </summary>
+    private void RefreshRowStyle(int gIdx, ObjectValue? row)
+    {
+        if (!_rowControls.TryGetValue(gIdx, out var controls)) return;
+
+        var isSel = row != null && IsSelected(gIdx, row);
+        var bg = isSel ? Bg(_selBg) : Bg(gIdx % 2 == 0 ? _rowEvenBg : _rowOddBg);
+        var fg = isSel ? Bg(_selFg) : Bg("#000000");
+
+        foreach (var ctrl in controls)
+        {
+            if (ctrl is Border border)
+            {
+                border.Background = bg;
+                if (border.Child is TextBlock tbk)
+                    tbk.Foreground = fg;
+                else if (border.Child is TextBox tb)
+                    tb.Foreground = fg;
+            }
+        }
+    }
+
     private void SetSelected(int g, ObjectValue? row, bool s)
     {
         if (_selBinding != null && row != null)
         {
-            //row.Properties[_selBinding] = BoolValue.Create(s);
-
             if(row.Properties[_selBinding] is not BoolValue capOld)
             {
                 return;
@@ -886,8 +933,9 @@ public class DataTable : Grid
             }
             var nv = BoolValue.Create(s);
             row.Properties[_selBinding] = nv;
+            _suppressCellEvent = true;
             _tableValue?.SetCell(g, _selBinding, capOld, nv);
-            //capOld = nv;
+            _suppressCellEvent = false;
 
         }
         else
@@ -927,28 +975,56 @@ public class DataTable : Grid
         for (int i = 0; i < r.Count; i++)
         {
             SetSelected(st + i, r[i], s);
+            RefreshRowStyle(st + i, r[i]);
         }
 
-        FullRebuild();
+        UpdateHeaderCheckbox();
     }
 
     private void ToggleRow(int g, ObjectValue o)
     {
         if (_selMode == SelectMode.Single)
         {
-            _selected.Clear();
+            // 先取消旧的选中行
+            if (_selBinding != null)
+            {
+                // 扫描全表找到旧选中行（binding 值为 true 的行），取消选中
+                var all = _allItems?.Elements;
+                if (all != null)
+                {
+                    for (int i = 0; i < all.Count; i++)
+                    {
+                        if (all[i] is ObjectValue orow
+                            && orow.Properties.TryGetValue(_selBinding, out var bv)
+                            && bv.AsBool())
+                        {
+                            SetSelected(i, orow, false);
+                            RefreshRowStyle(i, orow);
+                            break;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                foreach (var oldG in _selected.ToList())
+                {
+                    var oldRow = _allItems?.Elements.ElementAtOrDefault(oldG) as ObjectValue;
+                    RefreshRowStyle(oldG, oldRow);
+                }
+                _selected.Clear();
+            }
             SetSelected(g, o, true);
+            RefreshRowStyle(g, o);
         }
         else if (_selMode == SelectMode.Multiple)
         {
             SetSelected(g, o, !IsSelected(g, o));
+            RefreshRowStyle(g, o);
         }
-        else
-        {
-            return;
-        }
+        else return;
 
-        FullRebuild();
+        UpdateHeaderCheckbox();
     }
 
     private void UpdateHeaderCheckbox()

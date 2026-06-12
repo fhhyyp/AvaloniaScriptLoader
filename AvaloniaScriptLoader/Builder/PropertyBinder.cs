@@ -91,9 +91,10 @@ public class PropertyBinder
         }
         else if (table != null)
         {
-            // TableValue: 初始值 + 订阅
-            SetControlProperty(control, propertyName, table.Table/*.Get()*/);
-            table.OnChange(updateAction);
+            // TableValue: 初始值通过 ObjectValue 包装传递给控件（DataTable.SetTableValue 内部自行订阅类型化事件）
+            // 不订阅 OnChange —— Notify 回调传的是 ArrayValue，ApplyDataTableProperty 的 "items" 分支
+            // 只识别含 __table 的 ObjectValue，对 ArrayValue 无效，属空操作回调。
+            SetControlProperty(control, propertyName, table.Table);
         }
     }
 

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using ScriptLang.Runtime;
 
 namespace AvaloniaScriptLoader.Model;
@@ -143,6 +144,7 @@ public class TableValue : IDisposable
 
     public void SetCell(int index, string key, Value oldValue, Value newValue)
     {
+        Debug.WriteLine($"{index} {key} {oldValue} {newValue}");
         if (index < 0 || index >= _rows.Count) return;
         _rows[index].Properties[key] = newValue;
         CellChanged?.Invoke(this, new TableRowEventArgs(index, _rows[index]) 
