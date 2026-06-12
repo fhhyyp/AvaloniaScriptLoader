@@ -30,7 +30,8 @@ public static class AvaloniaModule
             ["vfor"]      = StructureFactory.CreateVforFunction(),
             ["component"] = StructureFactory.CreateComponentFunction(),
             ["style"]     = StyleFactory.CreateStyleFunction(),
-            ["fetch"]     = HttpModule.CreateExports().Properties["fetch"],
+            ["fetch"]      = HttpModule.CreateExports().Properties["fetch"],
+            ["fetchAsync"] = HttpModule.CreateExports().Properties["fetchAsync"],
         };
         return new ObjectValue(properties);
     }

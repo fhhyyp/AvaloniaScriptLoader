@@ -1,0 +1,18 @@
+import { inpc, computed } from "avalonia"
+import { stackpanel, label, timepicker } from "avalonia.controls"
+
+var title = "TimePicker 时间选择"
+var desc = "时间选择 + twoway 双向绑定 + 联动 TextBlock 显示"
+var meeting = inpc(now(), "twoway")
+var alarm = inpc(now(), "twoway")
+
+var render = () => stackpanel({spacing = 10, children = [
+    label({text = "会议时间:", fontSize = 12}),
+    timepicker({selectedTime = meeting, width = 240}),
+    label({text = computed(() => "已选: " + meeting.get().toString("HH:mm")), fontSize = 13, color = "#334155"}),
+
+    label({text = "提醒时间:", fontSize = 12}),
+    timepicker({selectedTime = alarm, width = 240}),
+    label({text = computed(() => "已选: " + alarm.get().toString("HH:mm")), fontSize = 13, color = "#334155"}),
+]})
+return { title, desc, render }

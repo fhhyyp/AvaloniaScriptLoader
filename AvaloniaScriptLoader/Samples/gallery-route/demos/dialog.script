@@ -1,0 +1,38 @@
+import { inpc } from "avalonia"
+import { stackpanel, label, button, dialog, textbox } from "avalonia.controls"
+
+var title = "Dialog 浮层对话框"
+var desc = "遮罩 + 居中卡片。支持自定义内容、maskClosable、全屏"
+var showHelp = inpc(false)
+var showInput = inpc(false)
+var inputText = inpc("", "twoway")
+
+var render = () => stackpanel({spacing = 8, children = [
+    // 简单对话框
+    button({text = "打开帮助", class = "btnPrimary", onClick = () => { showHelp.set(true) }}),
+    dialog({visible = showHelp, title = "帮助说明", width = 380, maskClosable = true,
+        content = stackpanel({spacing = 10, children = [
+            label({text = "📖 使用说明", fontSize = 15, color = "#1e293b"}),
+            label({text = "• 左侧导航选择控件分类", fontSize = 12, color = "#475569"}),
+            label({text = "• 右侧查看实时示例", fontSize = 12, color = "#475569"}),
+            label({text = "• 所有控件支持 inpc/computed 绑定", fontSize = 12, color = "#475569"}),
+            button({text = "知道了", class = "btnPrimary", horizontalAlignment = "right",
+                onClick = () => { showHelp.set(false) }}),
+        ]})
+    }),
+
+    // 输入对话框
+    button({text = "输入对话框", onClick = () => { showInput.set(true) }}),
+    dialog({visible = showInput, title = "输入内容", width = 380, maskClosable = true,
+        content = stackpanel({spacing = 10, children = [
+            label({text = "请输入:", fontSize = 13}),
+            textbox({text = inputText, placeholder = "在这里输入...", width = 320}),
+            stackpanel({orientation = "horizontal", spacing = 8, horizontalAlignment = "right", children = [
+                button({text = "取消", onClick = () => { showInput.set(false) }}),
+                button({text = "确定", class = "btnPrimary",
+                    onClick = () => { showInput.set(false) }}),
+            ]}),
+        ]})
+    }),
+]})
+return { title, desc, render }

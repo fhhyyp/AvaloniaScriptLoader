@@ -1,0 +1,40 @@
+import { inpc, computed } from "avalonia"
+import { stackpanel, label, textbox, button } from "avalonia.controls"
+
+var title = "TextBox 输入框"
+var desc = "文本输入 + twoway 双向绑定 + placeholder + onFocus/onBlur"
+
+var nameInput = inpc("", "twoway")
+var emailInput = inpc("", "twoway")
+var focusState = inpc("—")
+var blurState = inpc("—")
+
+var render = () => stackpanel({spacing = 10, children = [
+    label({text = "注册表单:", fontSize = 13, color = "#1e293b"}),
+
+    // 双向绑定
+    textbox({text = nameInput, placeholder = "请输入用户名", width = 300}),
+    textbox({text = emailInput, placeholder = "请输入邮箱", width = 300}),
+
+    // computed 实时反馈
+    label({text = computed(() => {
+        var n = nameInput.get()
+        var e = emailInput.get()
+        if (n == "" && e == "") then "请填写用户名和邮箱" else (
+            if (n == "") then "请填写用户名" else (
+                if (e == "") then "请填写邮箱" else "✓ email：" + n + "@" + e + ""
+            )
+        )
+    }), fontSize = 12, color = "#334155"}),
+
+    // onFocus/onBlur
+    textbox({placeholder = "onFocus/onBlur 测试", width = 300,
+        onFocus = () => { focusState.set("✓ 已获得焦点") },
+        onBlur = () => { blurState.set("✓ 已失去焦点") }}),
+    label({text = focusState, fontSize = 11, color = "#166534"}),
+    label({text = blurState, fontSize = 11, color = "#64748b"}),
+
+    // readonly
+    textbox({text = "只读内容不可编辑", readonly = true, width = 300}),
+]})
+return { title, desc, render }

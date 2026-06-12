@@ -1,0 +1,26 @@
+import { inpc } from "avalonia"
+import { stackpanel, button, label } from "avalonia.controls"
+
+var title = "动态 import()"
+var desc = "import('path') — 运行时按需加载脚本模块，自动缓存"
+var dynState = inpc("点击按钮加载模块")
+
+var render = () => stackpanel({spacing = 10, children = [
+    label({text = "路由式按需加载:", fontSize = 12}),
+    stackpanel({orientation = "horizontal", spacing = 8, children = [
+        button({text = "📦 加载 label 模块", class = "btnPrimary",
+            onClick = () => {
+                var mod = import("demos/label.script")
+                dynState.set("模块: " + mod.title + " — " + mod.desc)
+            }}),
+        button({text = "📦 加载 button 模块", class = "btnPrimary",
+            onClick = () => {
+                var mod = import("demos/button.script")
+                dynState.set("模块: " + mod.title + " — " + mod.desc)
+            }}),
+    ]}),
+    label({text = dynState, fontSize = 12, color = "#1e293b"}),
+    label({text = "模块首次 import 时编译执行，后续命中缓存", fontSize = 11, color = "#64748b"}),
+    label({text = "与静态 import 对比: 按需加载 + 代码分割", fontSize = 11, color = "#94a3b8"}),
+]})
+return { title, desc, render }

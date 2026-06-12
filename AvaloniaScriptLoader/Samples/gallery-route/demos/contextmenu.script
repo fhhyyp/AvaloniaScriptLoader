@@ -1,0 +1,26 @@
+import { inpc } from "avalonia"
+import { stackpanel, label, border, menuitem, separator } from "avalonia.controls"
+
+var title = "ContextMenu 右键菜单"
+var desc = "右键触发菜单。支持图标、子菜单、分隔线、onClick"
+var ctxMsg = inpc("在此区域点击右键")
+var render = () => stackpanel({spacing = 8, children = [
+    border({background = "#f1f5f9", padding = 40,
+        contextMenu = [
+            menuitem({header = "复制", icon = "📋", onClick = () => { ctxMsg.set("已复制 ✓") }}),
+            menuitem({header = "粘贴", icon = "📄", onClick = () => { ctxMsg.set("已粘贴 ✓") }}),
+            separator({}),
+            menuitem({header = "更多操作", items = [
+                menuitem({header = "导出 JSON", onClick = () => { ctxMsg.set("导出 JSON") }}),
+                menuitem({header = "导出 CSV", onClick = () => { ctxMsg.set("导出 CSV") }}),
+            ]}),
+            separator({}),
+            menuitem({header = "删除", icon = "🗑", onClick = () => { ctxMsg.set("已删除 ✓") }}),
+        ],
+        content = stackpanel({spacing = 4, children = [
+            label({text = "在此区域点击右键", fontSize = 14}),
+            label({text = ctxMsg, fontSize = 12, color = "#6366f1"}),
+        ]}),
+    }),
+]})
+return { title, desc, render }

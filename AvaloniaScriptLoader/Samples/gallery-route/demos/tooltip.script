@@ -1,0 +1,15 @@
+import { stackpanel, button, textbox, label } from "avalonia.controls"
+
+var title = "ToolTip 提示"
+var desc = "所有控件通用 tooltip 属性，悬停显示提示文字"
+var render = () => stackpanel({spacing = 10, children = [
+    label({text = "悬停下方控件查看 tooltip:", fontSize = 12}),
+    stackpanel({orientation = "horizontal", spacing = 8, children = [
+        button({text = "💾 保存", class = "btnPrimary", tooltip = "保存当前数据到数据库"}),
+        button({text = "🗑 删除", tooltip = "此操作不可恢复，请谨慎操作"}),
+        button({text = "📋 复制", tooltip = "复制选中内容到剪贴板"}),
+    ]}),
+    textbox({placeholder = "搜索文档...", tooltip = "支持模糊匹配，按 Enter 搜索", width = 280}),
+    label({text = "↑ tooltip 在所有控件上都可用", fontSize = 11, color = "#94a3b8"}),
+]})
+return { title, desc, render }

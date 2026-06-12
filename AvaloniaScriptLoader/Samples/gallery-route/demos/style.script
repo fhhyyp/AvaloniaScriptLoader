@@ -1,0 +1,19 @@
+import { style } from "avalonia"
+import { stackpanel, button, label } from "avalonia.controls"
+
+style("sBtn", {"background" = "#6366f1", "color" = "#ffffff", "fontSize" = 13})
+style("sBtn:pointerover", {"background" = "#818cf8"})
+style("sBtn:pressed", {"background" = "#4f46e5"})
+
+var title = "Style 样式系统"
+var desc = "style('name',{...}) 全局注册 → class='name' 复用"
+var render = () => stackpanel({spacing = 10, children = [
+    stackpanel({orientation = "horizontal", spacing = 8, children = [
+        button({text = "样式按钮 1", class = "sBtn"}),
+        button({text = "样式按钮 2", class = "sBtn"}),
+        button({text = "样式按钮 3", class = "sBtn"}),
+    ]}),
+    label({text = "↑ 三个按钮共享同一 class，悬停/按下伪类也生效", fontSize = 11, color = "#64748b"}),
+    label({text = "定义: style('sBtn',{...}) + style('sBtn:pointerover',{...})", fontSize = 11, color = "#94a3b8"}),
+]})
+return { title, desc, render }

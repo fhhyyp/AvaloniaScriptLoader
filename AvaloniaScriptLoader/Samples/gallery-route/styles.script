@@ -1,0 +1,13 @@
+// Gallery Route 样式
+import { style } from "avalonia"
+
+style("pageTitle", {"color" = "#0f172a", "fontSize" = 20})
+style("pageSub",   {"color" = "#94a3b8", "fontSize" = 11})
+style("demoTitle", {"color" = "#1e293b", "fontSize" = 15})
+style("demoDesc",  {"color" = "#64748b", "fontSize" = 11})
+style("divider",   {"background" = "#e2e8f0", "height" = 1})
+style("demoCard",  {"background" = "#ffffff", "padding" = 14,
+    "borderThickness" = 1, "borderBrush" = "#e2e8f0", "cornerRadius" = 6})
+style("btnPrimary", {"background" = "#6366f1", "color" = "#ffffff", "fontSize" = 12})
+
+return { "_loaded" = true }

@@ -1,0 +1,30 @@
+import { inpc, computed } from "avalonia"
+import { stackpanel, label, border, slider } from "avalonia.controls"
+
+var title = "Border 边框容器"
+var desc = "背景色、边框、圆角 + 联动 slider 调整 radius"
+var radius = inpc(8, "twoway")
+
+var render = () => stackpanel({spacing = 10, children = [
+    // 统计卡片
+    stackpanel({orientation = "horizontal", spacing = 10, children = [
+        border({background = "#eef2ff", cornerRadius = computed(() => radius.get()), padding = 16,
+            content = stackpanel({spacing = 2, children = [
+                label({text = "📊 总收入", fontSize = 11, color = "#64748b"}),
+                label({text = "¥12,450", fontSize = 18, color = "#4338ca"}),
+                label({text = "↑ 12%", fontSize = 11, color = "#166534"}),
+            ]})}),
+        border({background = "#fef2f2", cornerRadius = computed(() => radius.get()), padding = 16,
+            content = stackpanel({spacing = 2, children = [
+                label({text = "👥 新用户", fontSize = 11, color = "#64748b"}),
+                label({text = "1,280", fontSize = 18, color = "#991b1b"}),
+                label({text = "↓ 3%", fontSize = 11, color = "#dc2626"}),
+            ]})}),
+    ]}),
+
+    // 圆角控制
+    label({text = "调整圆角:", fontSize = 12}),
+    slider({value = radius, minimum = 0, maximum = 30, width = 260}),
+    label({text = computed(() => "cornerRadius = " + int(radius.get())), fontSize = 11, color = "#64748b"}),
+]})
+return { title, desc, render }

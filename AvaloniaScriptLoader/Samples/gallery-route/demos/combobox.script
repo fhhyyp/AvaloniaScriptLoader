@@ -1,0 +1,26 @@
+import { inpc, computed } from "avalonia"
+import { stackpanel, label, combobox, textbox } from "avalonia.controls"
+
+var title = "ComboBox 下拉框"
+var desc = "选项列表选择 + onSelect + 联动显示"
+
+var roles = ["管理员", "编辑", "作者", "读者", "访客"]
+var selectedRole = inpc(2, "twoway")
+var selectedName = inpc(roles[2])
+
+var render = () => stackpanel({spacing = 10, children = [
+    label({text = "选择角色:", fontSize = 12}),
+    combobox({items = roles, selected = selectedRole, width = 220,
+        onSelect = (e) => { selectedName.set(roles[e.index]) }}),
+    label({text = computed(() => "当前: " + selectedName.get() + " (索引 " + int(selectedRole.get()) + ")"),
+        fontSize = 13, color = "#6366f1"}),
+    label({text = computed(() => {
+        var r = selectedName.get()
+        if (r == "管理员") then "权限: 全部" else (
+            if (r == "编辑") then "权限: 内容管理" else (
+                if (r == "作者") then "权限: 创建文章" else "权限: 只读"
+            )
+        )
+    }), fontSize = 11, color = "#64748b"}),
+]})
+return { title, desc, render }

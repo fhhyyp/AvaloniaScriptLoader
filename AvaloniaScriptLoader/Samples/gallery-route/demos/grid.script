@@ -1,0 +1,22 @@
+import { grid, label, textbox, border } from "avalonia.controls"
+
+var title = "Grid 网格布局"
+var desc = "行列布局。支持 auto / * / 固定值，适合表单排列"
+var render = () => grid({rows = ["auto", "auto", "auto", "auto"], cols = [80, "*", 60], children = [
+    label({text = "用户名:", fontSize = 12, padding = 6}),
+    textbox({placeholder = "请输入", col = 1, width = 220}),
+    label({text = "必填", fontSize = 10, color = "#dc2626", col = 2}),
+
+    label({text = "密码:", fontSize = 12, padding = 6, row = 1}),
+    textbox({placeholder = "请输入密码", col = 1, row = 1, width = 220, password = true}),
+    label({text = "必填", fontSize = 10, color = "#dc2626", col = 2, row = 1}),
+
+    label({text = "邮箱:", fontSize = 12, padding = 6, row = 2}),
+    textbox({placeholder = "请输入邮箱", col = 1, row = 2, width = 220}),
+    label({text = "可选", fontSize = 10, color = "#94a3b8", col = 2, row = 2}),
+
+    label({text = "手机:", fontSize = 12, padding = 6, row = 3}),
+    textbox({placeholder = "请输入手机号", col = 1, row = 3, width = 220}),
+    label({text = "可选", fontSize = 10, color = "#94a3b8", col = 2, row = 3}),
+]})
+return { title, desc, render }

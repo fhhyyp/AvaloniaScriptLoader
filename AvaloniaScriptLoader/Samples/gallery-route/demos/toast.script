@@ -1,0 +1,29 @@
+import { app, inpc } from "avalonia"
+import { stackpanel, button, label, textbox } from "avalonia.controls"
+
+var title = "Toast 通知"
+var desc = "app.toast(msg, type) — 非阻塞消息提示，3 秒自动消失"
+var toastMsg = inpc("这是一条自定义消息", "twoway")
+
+var render = () => stackpanel({spacing = 10, children = [
+    label({text = "预设类型:", fontSize = 12}),
+    stackpanel({orientation = "horizontal", spacing = 8, children = [
+        button({text = "ℹ️ 信息", class = "btnPrimary", onClick = () => { app.toast("操作完成", "info") }}),
+        button({text = "✅ 成功", class = "btnPrimary", onClick = () => { app.toast("保存成功!", "success") }}),
+        button({text = "⚠️ 警告", class = "btnPrimary", onClick = () => { app.toast("磁盘空间不足", "warning") }}),
+        button({text = "❌ 错误", class = "btnPrimary", onClick = () => { app.toast("连接失败", "error") }}),
+    ]}),
+
+    // 自定义消息
+    label({text = "自定义消息:", fontSize = 12, margin = "8,0,0,0"}),
+    textbox({text = toastMsg, placeholder = "输入消息", width = 300}),
+    button({text = "发送自定义 Toast", onClick = () => { app.toast(toastMsg.get(), "info") }}),
+
+    // 多条通知
+    button({text = "连发 3 条", onClick = () => {
+        app.toast("第 1 条", "info")
+        app.toast("第 2 条", "success")
+        app.toast("第 3 条", "warning")
+    }}),
+]})
+return { title, desc, render }

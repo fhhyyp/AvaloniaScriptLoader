@@ -100,7 +100,7 @@ public partial class MainWindow : Window
         var samplesDir = Path.Combine(baseDir, "Samples");
 
         // 默认: gallery/main.script
-        var demoPath = Path.Combine(samplesDir, "gallery", "main.script");
+        var demoPath = Path.Combine(samplesDir, "gallery-route", "main.script");
         //demoPath = Path.Combine(samplesDir, "test-bug.script");
         if (File.Exists(demoPath))
             return demoPath;

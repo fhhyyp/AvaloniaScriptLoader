@@ -1,0 +1,22 @@
+import { inpc } from "avalonia"
+import { stackpanel, label, expander, button } from "avalonia.controls"
+
+var title = "Expander 折叠面板"
+var desc = "可折叠内容区域。isExpanded + expandDirection，适合设置面板"
+var render = () => stackpanel({spacing = 8, children = [
+    expander({header = "基础设置", isExpanded = true, content = stackpanel({spacing = 4, padding = 8, children = [
+        label({text = "用户名: admin", fontSize = 12}),
+        label({text = "语言: 简体中文", fontSize = 12}),
+        label({text = "自动保存: 开启", fontSize = 12}),
+    ]})}),
+    expander({header = "网络配置", expandDirection = "down", content = stackpanel({spacing = 4, padding = 8, children = [
+        label({text = "IP: 192.168.1.100", fontSize = 12}),
+        label({text = "端口: 8080", fontSize = 12}),
+        label({text = "超时: 30s", fontSize = 12}),
+    ]})}),
+    expander({header = "关于", content = stackpanel({spacing = 4, padding = 8, children = [
+        label({text = "版本: 1.0.0", fontSize = 12}),
+        label({text = "基于 AvaloniaScriptLoader", fontSize = 12, color = "#64748b"}),
+    ]})}),
+]})
+return { title, desc, render }

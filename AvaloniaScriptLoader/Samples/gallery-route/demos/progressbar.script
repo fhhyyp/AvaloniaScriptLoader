@@ -1,0 +1,35 @@
+import { inpc, computed } from "avalonia"
+import { stackpanel, label, progressbar, button, slider } from "avalonia.controls"
+
+var title = "ProgressBar 进度条"
+var desc = "任务进度展示 + Slider 手动控 + 自动模拟"
+var progress = inpc(42, "twoway")
+
+var render = () => stackpanel({spacing = 10, children = [
+    label({text = "📁 文件上传", fontSize = 12}),
+    progressbar({value = progress, width = 380}),
+    label({text = computed(() => int(progress.get()) + "%"), fontSize = 16, color = "#6366f1"}),
+
+    // 状态判断
+    label({text = computed(() => {
+        var p = progress.get()
+        if (p < 30) then "状态: 准备中..." else (
+            if (p < 70) then "状态: 传输中..." else (
+                if (p < 100) then "状态: 即将完成" else "状态: 完成 ✓"
+            )
+        )
+    }), fontSize = 12, color = "#334155"}),
+
+    // 滑块 + 按钮控制
+    slider({value = progress, minimum = 0, maximum = 100, width = 300}),
+    stackpanel({orientation = "horizontal", spacing = 8, children = [
+        button({text = "+10%", onClick = () => { 
+            var v = progress.get() + 10
+            if (v > 100) then { v = 0}
+            progress.set(v) }}),
+        button({text = "50%", onClick = () => { progress.set(50) }}),
+        button({text = "100%", onClick = () => { progress.set(100) }}),
+        button({text = "重置", onClick = () => { progress.set(0) }}),
+    ]}),
+]})
+return { title, desc, render }

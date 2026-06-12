@@ -10,6 +10,8 @@ internal class Program
     public static async Task Main(string[] args)
     {
         //ScriptLog.IsWriteLogFile = true;
+        ScriptLog.IsPrintOnDebug = true;
+        ScriptLog.Level = ScriptLogLevel.Concise;
         BuildAvaloniaApp()
             .StartWithClassicDesktopLifetime(args);
     }

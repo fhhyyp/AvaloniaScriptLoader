@@ -1,0 +1,24 @@
+import { inpc, computed } from "avalonia"
+import { stackpanel, label, datepicker } from "avalonia.controls"
+
+var title = "DatePicker 日期选择"
+var desc = "date() / now() 创建 DateTimeValue，twoway 双向绑定 + 联动显示"
+var birth = inpc(date("2000-01-01"), "twoway")
+var startDate = inpc(now(), "twoway")
+
+var render = () => stackpanel({spacing = 10, children = [
+    // 日期选择
+    label({text = "出生日期:", fontSize = 12}),
+    datepicker({selectedDate = birth, width = 240}),
+    label({text = computed(() => "已选: " + birth.get().toString("yyyy-MM-dd")), fontSize = 13, color = "#334155"}),
+    label({text = computed(() => "星期: " + birth.get().dayOfWeek), fontSize = 11, color = "#64748b"}),
+
+    // 计算时间差
+    label({text = "起始日期:", fontSize = 12}),
+    datepicker({selectedDate = startDate, width = 240}),
+    label({text = computed(() => {
+        var diff = startDate.get().year - birth.get().year
+        return "距今 " + str(diff) + " 年"
+    }), fontSize = 13, color = "#6366f1"}),
+]})
+return { title, desc, render }

@@ -114,12 +114,39 @@ public class ControlBuilder
                 _adapter.RegisterControl(name, wrapper);
         }
 
-        // 5. 递归处理 content（单一子控件）
-        if (descriptor.Properties.TryGetValue("content", out var contentValue)
-            && contentValue is ObjectValue contentObj)
+        // 5. 递归处理 content（单一子控件 + observable 绑定）
+        if (descriptor.Properties.TryGetValue("content", out var contentValue))
         {
-            var childControl = BuildInternal(contentObj);
-            SetContent(control, childControl);
+            // observable 包装优先检测（inpc/computed 本身是 ObjectValue）
+            if (InpcFactory.IsObservableWrapper(contentValue))
+            {
+                var inpc2 = InpcFactory.ExtractInpc(contentValue);
+                var computed2 = InpcFactory.ExtractComputed(contentValue);
+                Action buildAndSet = () =>
+                {
+                    var val2 = inpc2?.Get() ?? computed2?.Get();
+                    if (val2 is ObjectValue obj2)
+                    {
+                        var child2 = BuildInternal(obj2);
+                        Dispatcher.UIThread.Post(() => SetContent(control, child2));
+                    }
+                };
+                // 初始构建：已在 UI 线程，直接执行
+                var valInit = inpc2?.Get() ?? computed2?.Get();
+                if (valInit is ObjectValue objInit)
+                {
+                    var childInit = BuildInternal(objInit);
+                    SetContent(control, childInit);
+                }
+                // 后续变更：通过 Post 确保线程安全
+                if (inpc2 != null) inpc2.OnChange(_ => buildAndSet());
+                if (computed2 != null) computed2.OnChange(_ => buildAndSet());
+            }
+            else if (contentValue is ObjectValue contentObj)
+            {
+                var childControl = BuildInternal(contentObj);
+                SetContent(control, childControl);
+            }
         }
 
         // 6. 递归处理 children（子控件列表）

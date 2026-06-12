@@ -1,0 +1,25 @@
+import { inpc, computed } from "avalonia"
+import { stackpanel, label, slider, button } from "avalonia.controls"
+
+var title = "响应式 inpc / computed / twoway"
+var desc = "核心机制: 状态变化自动驱动 UI 更新，多源联动"
+var a = inpc(30, "twoway")
+var b = inpc(50, "twoway")
+
+var render = () => stackpanel({spacing = 10, children = [
+    label({text = "滑动条 A:", fontSize = 12}),
+    slider({value = a, minimum = 0, maximum = 100, width = 300}),
+    label({text = "滑动条 B:", fontSize = 12}),
+    slider({value = b, minimum = 0, maximum = 100, width = 300}),
+
+    // 多源 computed
+    label({text = computed(() => "A=" + int(a.get()) + "  B=" + int(b.get())), fontSize = 13, color = "#1e293b"}),
+    label({text = computed(() => "合计: " + (int(a.get()) + int(b.get()))), fontSize = 18, color = "#6366f1"}),
+    label({text = computed(() => "平均: " + (int(a.get()) + int(b.get())) / 2), fontSize = 14, color = "#f59e0b"}),
+    label({text = computed(() => "差值: " + (if a.get() > b.get() then int(a.get()) - int(b.get()) else int(b.get()) - int(a.get()))),
+        fontSize = 12, color = "#334155"}),
+
+    // 重置按钮
+    button({text = "重置", onClick = () => { a.set(30) b.set(50) }}),
+]})
+return { title, desc, render }

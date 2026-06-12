@@ -1,0 +1,15 @@
+import { stackpanel, label, scrollviewer, button } from "avalonia.controls"
+
+var title = "ScrollViewer 滚动视图"
+var desc = "内容溢出时自动滚动，配合 Grid * 行高"
+
+var render = () => scrollviewer({height = 140, content = stackpanel({spacing = 2, children = [
+    label({text = "🐱 第 1 项 — 内容较长需要滚动才能看到后面"}), label({text = "🐶 第 2 项"}),
+    label({text = "🐭 第 3 项"}), label({text = "🐹 第 4 项"}),
+    label({text = "🐰 第 5 项"}), label({text = "🦊 第 6 项"}),
+    label({text = "🐻 第 7 项"}), label({text = "🐼 第 8 项"}),
+    label({text = "🐨 第 9 项"}), label({text = "🐯 第 10 项"}),
+    label({text = "🦁 第 11 项"}), label({text = "🐮 第 12 项"}),
+    label({text = "🐷 第 13 项"}), label({text = "🐸 第 14 项"}),
+    label({text = "🐵 第 15 项 — 最后一项"})})})
+return { title, desc, render }

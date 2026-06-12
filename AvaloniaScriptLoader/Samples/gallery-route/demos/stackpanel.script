@@ -1,0 +1,20 @@
+import { stackpanel, label, border } from "avalonia.controls"
+
+var title = "StackPanel 线性布局"
+var desc = "垂直/水平排列。最常用的布局控件"
+var render = () => stackpanel({spacing = 10, children = [
+    label({text = "垂直排列 (默认):", fontSize = 11, color = "#64748b"}),
+    stackpanel({spacing = 2, children = [
+        border({background = "#e0e7ff", padding = 6, content = label({text = "行 1"})}),
+        border({background = "#c7d2fe", padding = 6, content = label({text = "行 2"})}),
+        border({background = "#a5b4fc", padding = 6, content = label({text = "行 3"})}),
+    ]}),
+    label({text = "水平排列:", fontSize = 11, color = "#64748b"}),
+    stackpanel({orientation = "horizontal", spacing = 4, children = [
+        border({background = "#e0e7ff", padding = 8, content = label({text = "A"})}),
+        border({background = "#c7d2fe", padding = 8, content = label({text = "B"})}),
+        border({background = "#a5b4fc", padding = 8, content = label({text = "C"})}),
+        border({background = "#818cf8", padding = 8, content = label({text = "D"})}),
+    ]}),
+]})
+return { title, desc, render }

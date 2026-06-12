@@ -1,0 +1,12 @@
+import { stackpanel, label, image } from "avalonia.controls"
+
+var title = "Image 图片"
+var desc = "显示图片文件。支持 stretch: uniform/fill/none/uniformToFill"
+var render = () => stackpanel({spacing = 10, children = [
+    label({text = "图片展示区域:", fontSize = 12}),
+    image({width = 200, height = 120, stretch = "uniform"}),
+    label({text = "支持 stretch 模式:", fontSize = 11, color = "#64748b"}),
+    label({text = "uniform / fill / none / uniformToFill", fontSize = 11, color = "#94a3b8"}),
+    label({text = "适用场景: 用户头像、Logo、产品图、Banner", fontSize = 11, color = "#64748b"}),
+]})
+return { title, desc, render }

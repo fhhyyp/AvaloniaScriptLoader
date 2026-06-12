@@ -1,0 +1,155 @@
+// ═══════════════════════════════════════════════════
+//  AvaloniaScriptLoader — 控件画廊 (Route 版)
+//  动态 import() 路由，每个控件独立 .script 文件
+// ═══════════════════════════════════════════════════
+import { app, inpc, computed, vif } from "avalonia"
+import { window, grid, stackpanel, button, label, border, scrollviewer, navmenu, navmenuitem, navmenugroup, menu, menuitem, separator } from "avalonia.controls"
+import { _loaded } from "styles.script"
+
+// ═══ 路由定义 ═══
+var pages = {
+    "label"=       { file = "demos/label.script",       cat = "basic" },
+    "button"=      { file = "demos/button.script",      cat = "basic" },
+    "textbox"=     { file = "demos/textbox.script",     cat = "basic" },
+    "checkbox"=    { file = "demos/checkbox.script",    cat = "select" },
+    "combobox"=    { file = "demos/combobox.script",    cat = "select" },
+    "listbox"=     { file = "demos/listbox.script",     cat = "select" },
+    "slider"=      { file = "demos/slider.script",      cat = "select" },
+    "progressbar"= { file = "demos/progressbar.script", cat = "progress" },
+    "datepicker"=  { file = "demos/datepicker.script",  cat = "progress" },
+    "timepicker"=  { file = "demos/timepicker.script",  cat = "progress" },
+    "border"=      { file = "demos/border.script",      cat = "layout" },
+    "scrollviewer"={ file = "demos/scrollviewer.script",cat = "layout" },
+    "stackpanel"=  { file = "demos/stackpanel.script",  cat = "layout" },
+    "grid"=        { file = "demos/grid.script",        cat = "layout" },
+    "tabcontrol"=  { file = "demos/tabcontrol.script",  cat = "layout" },
+    "expander"=    { file = "demos/expander.script",    cat = "layout" },
+    "dialog"=      { file = "demos/dialog.script",      cat = "advanced" },
+    "image"=       { file = "demos/image.script",       cat = "advanced" },
+    "contextmenu"= { file = "demos/contextmenu.script", cat = "advanced" },
+    "reactive"=    { file = "demos/reactive.script",    cat = "framework" },
+    "tooltip"=     { file = "demos/tooltip.script",     cat = "framework" },
+    "style"=       { file = "demos/style.script",       cat = "framework" },
+    "toast"=       { file = "demos/toast.script",       cat = "framework" },
+    "pseudoclass"= { file = "demos/pseudoclass.script", cat = "framework" },
+    "dynimport"=   { file = "demos/dynimport.script",   cat = "framework" },
+    "fetch"=       { file = "demos/fetch.script",       cat = "framework" },
+}
+
+var currentPage = inpc("label")
+var pageTitle = inpc("Label 文本标签")
+var pageDesc = inpc("")
+var pageContent = inpc(null)
+
+// ═══ 动态路由加载 ═══
+var loadPage = (id) => {
+    currentPage.set(id)
+    var info = pages[id]
+    if (info == null) { return }
+    var mod = import(info.file)
+    pageTitle.set(mod.title)
+    pageDesc.set(mod.desc)
+    pageContent.set(mod.render())  // 通过 inpc 自动触发 content 更新
+}
+
+// ═══ 分类计算 ═══
+let isPage = (id) => computed(() => currentPage.get() == id)
+let pageIn = (cat) => computed(() => {
+    var p = currentPage.get()
+    var info = pages[p]
+    return info != null && info.cat == cat
+})
+
+// ═══ 初始加载 ═══
+loadPage("label")
+
+// ═══ 主窗口 ═══
+let main = window({
+    title = "AvaloniaScriptLoader — 控件画廊 (Route)",
+    width = 880, height = 620,
+    systemDecorations = "none",
+    extendClientArea = true,
+    canResize = true,
+    content = border({
+        borderBrush = "#435366",
+        borderThickness = 2,
+        padding = 0,
+        content = grid({rows = ["auto", "*"], cols = [160, "*"], children = [
+            // ═══ 菜单栏 ═══
+            border({row = 0, colSpan = 2, background = "#a7b2c5", windowDrag = true,
+                padding = "2,8",
+                content = grid({cols = ["*", "auto"], children = [
+                    menu({col = 0, items = [
+                        menuitem({header = "文件", foreground = "#1e293b", items = [
+                            menuitem({header = "退出", foreground = "#1e293b", icon = "🚪", onClick = () => { main.close() }}),
+                        ]}),
+                        menuitem({header = "帮助", foreground = "#1e293b", items = [
+                            menuitem({header = "关于", foreground = "#1e293b", icon = "ℹ️", onClick = () => { app.toast("AvaloniaScriptLoader v1.0", "info") }}),
+                        ]}),
+                    ]}),
+                    button({col = 1, text = "✕", fontSize = 14, color = "#475569",
+                        background = "transparent", verticalAlignment = "center",
+                        onClick = () => { main.close() }}),
+                ]}),
+            }),
+            // ═══ 侧边栏 ═══
+            border({row = 1, col = 0, background = "#0f172a", padding = 10,
+                content = stackpanel({spacing = 0, children = [
+                    label({text = "🧩 控件画廊", fontSize = 16, color = "#e2e8f0", margin = "4,0,0,12"}),
+                    label({text = "AvaloniaScriptLoader", fontSize = 10, color = "#64748b", margin = "0,0,0,10"}),
+                    navmenu({items = [
+                        navmenugroup({header = "基础控件", fontSize = 16, isExpanded = pageIn("basic"), items = [
+                            navmenuitem({text = "Label 标签", onClick = () => { loadPage("label") }}),
+                            navmenuitem({text = "Button 按钮", onClick = () => { loadPage("button") }}),
+                            navmenuitem({text = "TextBox 输入", onClick = () => { loadPage("textbox") }}),
+                        ]}),
+                        navmenugroup({header = "选择控件", fontSize = 16, isExpanded = pageIn("select"), items = [
+                            navmenuitem({text = "CheckBox 复选", onClick = () => { loadPage("checkbox") }}),
+                            navmenuitem({text = "ComboBox 下拉", onClick = () => { loadPage("combobox") }}),
+                            navmenuitem({text = "ListBox 列表", onClick = () => { loadPage("listbox") }}),
+                            navmenuitem({text = "Slider 滑块", onClick = () => { loadPage("slider") }}),
+                        ]}),
+                        navmenugroup({header = "进度与日期", fontSize = 16, isExpanded = pageIn("progress"), items = [
+                            navmenuitem({text = "ProgressBar", onClick = () => { loadPage("progressbar") }}),
+                            navmenuitem({text = "DatePicker", onClick = () => { loadPage("datepicker") }}),
+                            navmenuitem({text = "TimePicker", onClick = () => { loadPage("timepicker") }}),
+                        ]}),
+                        navmenugroup({header = "容器与布局", fontSize = 16, isExpanded = pageIn("layout"), items = [
+                            navmenuitem({text = "Border 边框", onClick = () => { loadPage("border") }}),
+                            navmenuitem({text = "ScrollViewer", onClick = () => { loadPage("scrollviewer") }}),
+                            navmenuitem({text = "StackPanel", onClick = () => { loadPage("stackpanel") }}),
+                            navmenuitem({text = "Grid 网格", onClick = () => { loadPage("grid") }}),
+                            navmenuitem({text = "TabControl", onClick = () => { loadPage("tabcontrol") }}),
+                            navmenuitem({text = "Expander", onClick = () => { loadPage("expander") }}),
+                        ]}),
+                        navmenugroup({header = "高级", fontSize = 16, isExpanded = pageIn("advanced"), items = [
+                            navmenuitem({text = "Dialog 对话框", onClick = () => { loadPage("dialog") }}),
+                            navmenuitem({text = "Image 图片", onClick = () => { loadPage("image") }}),
+                            navmenuitem({text = "ContextMenu", onClick = () => { loadPage("contextmenu") }}),
+                        ]}),
+                        navmenugroup({header = "框架特性", fontSize = 16, isExpanded = pageIn("framework"), items = [
+                            navmenuitem({text = "响应式绑定", onClick = () => { loadPage("reactive") }}),
+                            navmenuitem({text = "ToolTip 提示", onClick = () => { loadPage("tooltip") }}),
+                            navmenuitem({text = "Style 样式", onClick = () => { loadPage("style") }}),
+                            navmenuitem({text = "Toast 通知", onClick = () => { loadPage("toast") }}),
+                            navmenuitem({text = "伪类样式", onClick = () => { loadPage("pseudoclass") }}),
+                            navmenuitem({text = "动态import", onClick = () => { loadPage("dynimport") }}),
+                            navmenuitem({text = "HTTP Client", onClick = () => { loadPage("fetch") }}),
+                        ]}),
+                    ]})
+                ]}),
+            }),
+            // ═══ 右侧内容区 ═══
+            scrollviewer({row = 1, col = 1, content = stackpanel({
+                spacing = 16, padding = 24,
+                children = [
+                    label({text = pageTitle, class = "pageTitle", margin = "12,0,0,12"}),
+                    label({text = pageDesc, class = "pageSub", margin = "-6,0,0,12"}),
+                    border({class = "divider", height = 1}),
+                    border({class = "demoCard", margin = "-4,0,0,12", content = pageContent}),
+                ]
+            })}),
+        ]})
+    }),
+})
+return main 

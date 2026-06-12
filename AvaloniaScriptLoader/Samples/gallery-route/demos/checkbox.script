@@ -1,0 +1,28 @@
+import { inpc, computed } from "avalonia"
+import { stackpanel, label, checkbox, button, textbox } from "avalonia.controls"
+
+var title = "CheckBox 复选框"
+var desc = "布尔选择 + twoway + onChange + 与其他控件联动"
+
+var agreeTerms = inpc(false, "twoway")
+var subscribe = inpc(true, "twoway")
+var notifications = inpc(false, "twoway")
+
+var render = () => stackpanel({spacing = 10, children = [
+    // 基础 twoway
+    checkbox({text = "我已阅读并同意《服务条款》", checked = agreeTerms}),
+
+    // 状态反馈 + 控制其他控件
+    label({text = computed(() => if agreeTerms.get() then "✅ 已同意 — 可以继续" else "⚠ 请先同意条款"),
+        fontSize = 12, color = computed(() => if agreeTerms.get() then "#166534" else "#dc2626")}),
+    button({text = "下一步", class = "btnPrimary", enabled = computed(() => agreeTerms.get())}),
+
+    // 多个 CheckBox 联动
+    label({text = "通知设置:", fontSize = 12, color = "#64748b", margin = "8,0,0,0"}),
+    checkbox({text = "订阅邮件", checked = subscribe}),
+    checkbox({text = "桌面通知", checked = notifications,
+        enabled = computed(() => subscribe.get())}),
+    label({text = computed(() => if subscribe.get() then (if notifications.get() then "全部通知开启" else "仅邮件") else "所有通知关闭"),
+        fontSize = 11, color = "#94a3b8"}),
+]})
+return { title, desc, render }

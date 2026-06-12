@@ -1,0 +1,27 @@
+import { inpc, computed } from "avalonia"
+import { stackpanel, label, slider, progressbar } from "avalonia.controls"
+
+var title = "Slider 滑块"
+var desc = "连续数值输入 + twoway 双向绑定 + 联动 ProgressBar"
+var vol = inpc(70, "twoway")
+var bright = inpc(85, "twoway")
+var temp = inpc(25, "twoway")
+
+var render = () => stackpanel({spacing = 14, children = [
+    // 音量 + 进度条联动
+    label({text = "🔊 音量", fontSize = 12}),
+    slider({value = vol, minimum = 0, maximum = 100, width = 300}),
+    progressbar({value = vol, width = 300}),
+    label({text = computed(() => int(vol.get()) + "%"), fontSize = 14, color = "#6366f1"}),
+
+    // 亮度
+    label({text = "☀ 亮度", fontSize = 12}),
+    slider({value = bright, minimum = 0, maximum = 100, width = 300}),
+    label({text = computed(() => int(bright.get()) + "%"), fontSize = 14, color = "#f59e0b"}),
+
+    // 温度
+    label({text = "🌡 温度", fontSize = 12}),
+    slider({value = temp, minimum = -10, maximum = 50, width = 300}),
+    label({text = computed(() => int(temp.get()) + "°C"), fontSize = 14, color = "#dc2626"}),
+]})
+return { title, desc, render }

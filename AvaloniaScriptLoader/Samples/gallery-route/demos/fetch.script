@@ -1,0 +1,78 @@
+import { inpc, fetch } from "avalonia"
+import { stackpanel, label, button, textbox, listbox } from "avalonia.controls"
+
+var API = "http://localhost:5200/api"
+var title = "HTTP Client"
+var desc = "fetch() / fetchAsync() — GET/POST/PUT/DELETE 调用本地 API 服务"
+
+var result = inpc("点击按钮发起请求")
+var usersDisplay = inpc([])
+
+var loadUsers = () => {
+    var res = fetch(API + "/users")
+    if (res.ok) {
+        var list = res.json()
+        print(list)
+        var names = []
+        for i in range(0, len(list)) {
+            names = names + [list[i].name + " (" + list[i].email + ")"]
+        }
+        usersDisplay.set(names)
+        result.set("✓ 加载了 " + str(len(list)) + " 个用户")
+    } else {
+        result.set("✗ 失败: " + res.text())
+    }
+}
+
+var createUser = () => {
+    var res = fetch(API + "/users", {
+        method = "POST",
+        body = "{\"name\":\"新用户\",\"email\":\"new" + str(now().second) + "@test.com\",\"role\":\"读者\"}"
+    })
+    
+    result.set(if res.ok then "✓ 创建成功 (status=" + str(res.status) + ")" else "✗ " + res.text())
+    if (res.ok) { loadUsers() }
+}
+
+var deleteLast = () => {
+    var list = fetch(API + "/users").json()
+    if (len(list) == 0) {
+        result.set("没有可删除的用户")
+        return
+    }
+    var lastId = list[len(list) - 1].id
+    var res = fetch(API + "/users/" + str(lastId), { method = "DELETE" })
+    result.set(if res.ok  then "✓ 已删除 id=" + str(lastId) else "✗ " + res.text())
+    if (res.ok) { loadUsers() }
+}
+
+var testHealth = () => {
+    var res = fetch(API + "/health")
+    if (res.ok) {
+        var h = res.json()
+        result.set("✓ 服务正常 | 用户:" + str(h.users) + " | 在线:" + h.uptime)
+    } else {
+        result.set("✗ API 服务未启动 (localhost:5200)")
+    }
+}
+
+var testError = () => {
+    var res = fetch(API + "/error/404")
+    result.set("模拟 404: status=" + str(res.status) + " ok=" + str(res.ok))
+}
+
+var render = () => stackpanel({spacing = 10, children = [
+    stackpanel({orientation = "horizontal", spacing = 8, children = [
+        button({text = "📋 用户列表", class = "btnPrimary", onClick = () => { loadUsers() }}),
+        button({text = "➕ 创建用户", onClick = () => { createUser() }}),
+        button({text = "🗑 删除末位", onClick = () => { deleteLast() }}),
+    ]}),
+    stackpanel({orientation = "horizontal", spacing = 8, children = [
+        button({text = "❤️ 健康检查", onClick = () => { testHealth() }}),
+        button({text = "⚠ 模拟404", onClick = () => { testError() }}),
+    ]}),
+    listbox({items = usersDisplay, height = 100, width = 420}),
+    label({text = result, fontSize = 12, color = "#334155"}),
+    label({text = "API: " + API + "  |  需要先启动 ApiScriptLoader", fontSize = 10, color = "#94a3b8"}),
+]})
+return { title, desc, render }

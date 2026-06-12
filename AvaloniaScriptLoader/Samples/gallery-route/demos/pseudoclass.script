@@ -1,0 +1,32 @@
+import { inpc, computed, style } from "avalonia"
+import { stackpanel, button, label, checkbox, border } from "avalonia.controls"
+
+style("pBtn", {"background" = "#6366f1", "color" = "#ffffff", "fontSize" = 13})
+style("pBtn:pointerover", {"background" = "#818cf8"})
+style("pBtn:pressed", {"background" = "#4f46e5"})
+style("pBtn:focus", {"borderBrush" = "#f59e0b", "borderThickness" = 2})
+style("pBtn:disabled", {"opacity" = 0.4})
+
+style("pCard", {"background" = "#ffffff", "padding" = 14, "borderThickness" = 1, "borderBrush" = "#e2e8f0", "cornerRadius" = 6})
+style("pCard:pointerover", {"background" = "#eef2ff", "borderBrush" = "#6366f1"})
+
+var enableTest = inpc(true, "twoway")
+var title = "PseudoClass 伪类样式"
+var desc = "style('name:pseudo',{...}) — CSS 风格 :pointerover/:pressed/:focus/:disabled"
+var render = () => stackpanel({spacing = 10, children = [
+    // 按钮伪类
+    label({text = "按钮伪类 (悬停/按下/获焦/禁用):", fontSize = 12}),
+    stackpanel({orientation = "horizontal", spacing = 8, children = [
+        button({text = "悬停/按下测试", class = "pBtn"}),
+        button({text = "Tab 获焦测试", class = "pBtn"}),
+    ]}),
+    checkbox({text = "启用按钮", checked = enableTest}),
+    button({text = "禁用态 (opacity=0.4)", class = "pBtn", enabled = computed(() => enableTest.get())}),
+
+    // 卡片伪类 — 悬停变色
+    label({text = "卡片悬停 (border+background 变色):", fontSize = 12, margin = "4,0,0,0"}),
+    border({class = "pCard", content = label({text = "鼠标移到此卡片上", fontSize = 12, color = "#334155"})}),
+
+    label({text = "定义: style('name:pseudo',{...}) — 多个类可叠加", fontSize = 11, color = "#94a3b8"}),
+]})
+return { title, desc, render }

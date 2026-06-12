@@ -1,0 +1,26 @@
+import { inpc, computed } from "avalonia"
+import { stackpanel, label, slider } from "avalonia.controls"
+
+var title = "Label 文本标签"
+var desc = "静态/动态文本、computed 绑定、fontSize/color/fontWeight 样式"
+var vol = inpc(70, "twoway")
+
+var render = () => stackpanel({spacing = 10, children = [
+    // 基础文本
+    label({text = "静态标签 — 固定文字", fontSize = 14, color = "#1e293b"}),
+    label({text = "大号标题 — 可用于页面标题", fontSize = 20, color = "#6366f1", fontWeight = "bold"}),
+    label({text = "灰色辅助文字 — fontSize=11, color=#94a3b8", fontSize = 11, color = "#94a3b8"}),
+
+    // computed 动态绑定 — 与 Slider 联动
+    label({text = "🔊 音量 (拖动滑块):", fontSize = 12, color = "#64748b"}),
+    slider({value = vol, minimum = 0, maximum = 100, width = 260}),
+    label({text = computed(() => "当前音量: " + int(vol.get()) + "%"), fontSize = 18, color = "#6366f1"}),
+    label({text = computed(() => {
+        var v = int(vol.get())
+        if (v == 0) then "🔇 静音" else (if (v < 30) then "🔈 低" else (if (v < 70) then "🔉 中" else "🔊 高"))
+    }), fontSize = 14, color = "#334155"}),
+
+    // 多行文本
+    label({text = "支持中文、Emoji 🎉、Unicode、\n以及所有 Avalonia 字体属性", fontSize = 12, color = "#475569"}),
+]})
+return { title, desc, render }

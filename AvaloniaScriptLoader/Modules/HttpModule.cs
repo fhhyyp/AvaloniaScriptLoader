@@ -24,9 +24,13 @@ public static class HttpModule
 
     public static ObjectValue CreateExports()
     {
+        var syncFetch = CreateFetchFunction();
+        var asyncFetch = CreateFetchAsyncFunction();
+
         return new ObjectValue(new Dictionary<string, Value>
         {
-            ["fetch"] = CreateFetchFunction(),
+            ["fetch"] = syncFetch,
+            ["fetchAsync"] = asyncFetch,
         });
     }
 
@@ -79,6 +83,57 @@ public static class HttpModule
             }
 
             return CreateResponseObject(response);
+        });
+    }
+
+    /// <summary>
+    /// fetchAsync(url, options?) — 异步 HTTP 请求，不阻塞 UI
+    /// 用法: var res = fetchAsync("http://localhost:5200/api/users"); res.json()
+    /// </summary>
+    private static FunctionValue CreateFetchAsyncFunction()
+    {
+        // 直接复用同步实现，但注册为 async 委托
+        return new FunctionValue("fetchAsync", async (engine, args) =>
+        {
+            var url = args.FirstOrDefault()?.AsString() ?? "";
+            if (string.IsNullOrEmpty(url))
+                throw new ArgumentException("fetchAsync() 需要 URL 参数");
+
+            var method = "GET";
+            Dictionary<string, string>? headers = null;
+            string? body = null;
+
+            if (args.Count > 1 && args[1] is ObjectValue opts)
+            {
+                if (opts.Properties.TryGetValue("method", out var m))
+                    method = m.AsString()?.ToUpperInvariant() ?? "GET";
+                if (opts.Properties.TryGetValue("body", out var b))
+                    body = b.AsString();
+                if (opts.Properties.TryGetValue("headers", out var h) && h is ObjectValue hObj)
+                {
+                    headers = [];
+                    foreach (var kv in hObj.Properties)
+                        headers[kv.Key] = kv.Value.AsString();
+                }
+            }
+
+            try
+            {
+                var request = new HttpRequestMessage(new HttpMethod(method), url);
+                if (headers != null)
+                    foreach (var h in headers)
+                        request.Headers.TryAddWithoutValidation(h.Key, h.Value);
+                if (body != null && method is "POST" or "PUT" or "PATCH")
+                    request.Content = new StringContent(body, Encoding.UTF8, "application/json");
+
+                var response = await _client.SendAsync(request);
+                return CreateResponseObject(response);
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"[fetchAsync] 请求失败: {url} — {ex.Message}");
+                return CreateErrorResponse(ex.Message);
+            }
         });
     }
 

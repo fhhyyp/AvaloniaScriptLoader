@@ -1,0 +1,25 @@
+import { inpc } from "avalonia"
+import { stackpanel, label, combobox, checkbox, tabcontrol, tabitem } from "avalonia.controls"
+
+var title = "TabControl 标签页"
+var desc = "多页切换。适用于设置面板、多视图场景"
+
+var render = () => tabcontrol({items = [
+    tabitem({header = "基本", content = stackpanel({spacing = 8, padding = 12, children = [
+        label({text = "语言选择", fontSize = 12}),
+        combobox({items = ["简体中文", "English", "日本語"], width = 180}),
+        checkbox({text = "自动保存", checked = true}),
+    ]})}),
+    tabitem({header = "通知", content = stackpanel({spacing = 8, padding = 12, children = [
+        checkbox({text = "邮件通知", checked = true}),
+        checkbox({text = "桌面通知", checked = true}),
+        checkbox({text = "声音提醒", checked = false}),
+    ]})}),
+    tabitem({header = "高级", content = stackpanel({spacing = 8, padding = 12, children = [
+        label({text = "端口号", fontSize = 12}),
+        label({text = "默认: 8080", fontSize = 11, color = "#64748b"}),
+        label({text = "最大连接数", fontSize = 12}),
+        label({text = "默认: 100", fontSize = 11, color = "#64748b"}),
+    ]})}),
+]})
+return { title, desc, render }
