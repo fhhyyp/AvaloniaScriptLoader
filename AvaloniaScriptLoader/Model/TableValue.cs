@@ -44,61 +44,130 @@ public class TableValue : IDisposable
 
     private static ObjectValue WrapTable(TableValue tableInstance)
     {
-        var d = new Dictionary<string, Value> { [ControlMeta.TypeKey] = StringValue.Create("table"), ["__table"] = new ClrObjectValue(tableInstance), ["value"] = tableInstance.Get() };
-        d["get"] = new FunctionValue("get", () => tableInstance.Get());
-        d["set"] = new FunctionValue("set", (List<Value> a) => { if (a.Count > 0 && a[0] is ArrayValue av) tableInstance.Set(av); return Value.Null; });
-        d["addRow"] = new FunctionValue("addRow", (List<Value> a) => { if (a.Count > 0 && a[0] is ObjectValue r) tableInstance.AddRow(r); return Value.Null; });
-        d["removeRow"] = new FunctionValue("removeRow", (List<Value> a) => { if (a.Count > 0 && a[0].IsNumber) tableInstance.RemoveRow(a[0].As<int>()); return Value.Null; });
+        var d = new Dictionary<string, Value> 
+        { 
+            [ControlMeta.TypeKey] = StringValue.Create("table"), 
+            ["__table"] = new ClrObjectValue(tableInstance), 
+            ["value"] = tableInstance.Get(),
+            ["get"] = new FunctionValue("get", tableInstance.Get),
+            ["set"] = new FunctionValue("set", (List<Value> a) =>
+            {
+                if (a.Count > 0 && a[0] is ArrayValue av)
+                    tableInstance.Set(av);
+            }),
+            ["addRow"] = new FunctionValue("addRow", (List<Value> a) =>
+            {
+                if (a.Count > 0 && a[0] is ObjectValue r)
+                    tableInstance.AddRow(r);
+            }),
+            ["removeRow"] = new FunctionValue("removeRow", (List<Value> a) =>
+            {
+                if (a.Count > 0 && a[0].IsNumber)
+                    tableInstance.RemoveRow(a[0].As<int>());
+            }),
+        };
+       
         return new ObjectValue(d);
     }
 
-    public ArrayValue Get() { var el = new List<Value>(_rows.Count); foreach (var r in _rows) el.Add(r); return new ArrayValue(el); }
-    public ObjectValue? GetRow(int index) => index >= 0 && index < _rows.Count ? _rows[index] : null;
+    public ArrayValue Get() 
+    { 
+        var el = new List<Value>(_rows.Count); 
+        foreach (var r in _rows) 
+            el.Add(r); 
+        return new ArrayValue(el); 
+    }
+    public ObjectValue? GetRow(int index) => 
+        index >= 0  && index < _rows.Count ? _rows[index] : null;
 
     public void Set(ArrayValue av)
     {
         _rows.Clear();
-        foreach (var e in av.Elements) if (e is ObjectValue obj) _rows.Add(obj);
+        foreach (var e in av.Elements) if (e is ObjectValue obj) 
+            _rows.Add(obj);
         CollectionReset?.Invoke();
         Notify();
     }
 
-    public void AddRow(ObjectValue row) { _rows.Add(row); RowAdded?.Invoke(this, new TableRowEventArgs(_rows.Count - 1, row)); Notify(); }
+    public void AddRow(ObjectValue row) 
+    { 
+        _rows.Add(row);
+        RowAdded?.Invoke(this, new TableRowEventArgs(_rows.Count - 1, row)); 
+        Notify();
+    }
 
-    public void InsertRow(int index, ObjectValue row) { if (index < 0 || index > _rows.Count) return; _rows.Insert(index, row); RowAdded?.Invoke(this, new TableRowEventArgs(index, row)); Notify(); }
+    public void InsertRow(int index, ObjectValue row)
+    {
+        if (index < 0 || index > _rows.Count) return;
+        _rows.Insert(index, row); 
+        RowAdded?.Invoke(this, new TableRowEventArgs(index, row));
+        Notify(); 
+    }
 
     public void RemoveRow(int index)
     {
         if (index < 0 || index >= _rows.Count) return;
         var removed = _rows[index]; _rows.RemoveAt(index);
-        RowRemoved?.Invoke(this, new TableRowEventArgs(index, removed)); Notify();
+        RowRemoved?.Invoke(this, new TableRowEventArgs(index, removed)); 
+        Notify();
     }
 
     public void ReplaceRow(int index, ObjectValue newRow)
     {
         if (index < 0 || index >= _rows.Count) return;
         var old = _rows[index]; _rows[index] = newRow;
-        RowReplaced?.Invoke(this, new TableRowEventArgs(index, old, newRow)); Notify();
+        RowReplaced?.Invoke(this, new TableRowEventArgs(index, old, newRow)); 
+        Notify();
     }
 
     public void MoveRow(int oldIndex, int newIndex)
     {
-        if (oldIndex < 0 || oldIndex >= _rows.Count || newIndex < 0 || newIndex >= _rows.Count) return;
-        var row = _rows[oldIndex]; _rows.RemoveAt(oldIndex); _rows.Insert(newIndex, row);
-        RowMoved?.Invoke(this, new TableRowEventArgs(newIndex, row) { OldIndex = oldIndex, NewIndex = newIndex }); Notify();
+        if (oldIndex < 0 || oldIndex >= _rows.Count
+            || newIndex < 0 || newIndex >= _rows.Count) 
+            return;
+        var row = _rows[oldIndex]; 
+        _rows.RemoveAt(oldIndex); 
+        _rows.Insert(newIndex, row);
+        RowMoved?.Invoke(this, new TableRowEventArgs(newIndex, row)
+        { 
+            OldIndex = oldIndex, 
+            NewIndex = newIndex 
+        });
+        Notify();
     }
 
     public void SetCell(int index, string key, Value oldValue, Value newValue)
     {
         if (index < 0 || index >= _rows.Count) return;
         _rows[index].Properties[key] = newValue;
-        CellChanged?.Invoke(this, new TableRowEventArgs(index, _rows[index]) { Key = key, OldValue = oldValue, NewValue = newValue });
+        CellChanged?.Invoke(this, new TableRowEventArgs(index, _rows[index]) 
+        {
+            Key = key, 
+            OldValue = oldValue, 
+            NewValue = newValue 
+        });
         Notify();
     }
 
-    public void OnChange(Action<Value> callback) { lock (_subscribers) _subscribers.Add(callback); }
+    public void OnChange(Action<Value> callback) 
+    { 
+        lock (_subscribers) 
+            _subscribers.Add(callback); 
+    }
 
-    private void Notify() { if (_disposed) return; var s = Get(); foreach (var cb in _subscribers) cb(s); }
+    private void Notify() 
+    {
+        if (_disposed) return; 
+        var s = Get(); 
+        foreach (var cb in _subscribers) 
+            cb(s);
+    }
 
-    public void Dispose() { _disposed = true; _rows.Clear(); _subscribers.Clear(); }
+    public void Dispose()
+    { 
+        _disposed = true;
+        _rows.Clear(); 
+        _subscribers.Clear();
+    }
 }
+
