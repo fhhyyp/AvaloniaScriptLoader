@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Security.Cryptography;
 using Avalonia;
@@ -40,7 +41,7 @@ public class DataTable : Grid
     private bool _isReadOnly;
     private string? _sortCol;
     private bool _sortAsc = true;
-    private ArrayValue? _allItems;
+    //private ArrayValue? _allItems;
     private TableValue? _tableValue;
     private string _selMode = SelectMode.None;
     private double _savedCbWidth = 40;
@@ -49,6 +50,7 @@ public class DataTable : Grid
     private int _selOffset, _dataColOffset;
     private bool _hasCheckbox;
     private ICallable?[] _templates = [];
+    private bool _updatingAllHeaderCheckbox = false;
     private bool _updatingHeaderCheckbox = false;
     private bool _suppressCellEvent = false;
     // Cached row controls: global data index → rendered controls on current page
@@ -134,16 +136,16 @@ public class DataTable : Grid
         BuildColumns(cols);
     }
 
-    internal void SetItems(ArrayValue av)
+    /*internal void SetItems(ArrayValue av)
     {
         _allItems = av;
         FullRebuild();
-    }
+    }*/
 
     internal void SetTableValue(TableValue tv)
     {
         _tableValue = tv;
-        _allItems = tv.Get();
+        //_allItems = tv.Get();
 
         tv.RowAdded += OnRowAdded;
         tv.RowRemoved += OnRowRemoved;
@@ -170,7 +172,7 @@ public class DataTable : Grid
 
     internal void SetCurrentPage(int n)
     {
-        if (_allItems == null)
+        if (_tableValue?.Get() == null)
         {
             return;
         }
@@ -179,7 +181,7 @@ public class DataTable : Grid
         FullRebuild();
     }
 
-    private int TotalPages => _maxCount <= 0 ? 1 : Math.Max(1, (int)Math.Ceiling((double)_allItems!.Elements.Count / _maxCount));
+    private int TotalPages => _maxCount <= 0 ? 1 : Math.Max(1, (int)Math.Ceiling((double)_tableValue!.Count / _maxCount));
 
     internal void SetSelectionMode(string m)
     {
@@ -235,6 +237,7 @@ public class DataTable : Grid
     internal void SetSelectionBinding(string? k)
     {
         _selBinding = k;
+        _bindings[0] = k;
         FullRebuild();
     }
 
@@ -316,7 +319,7 @@ public class DataTable : Grid
 
     private void OnRowAdded(object? _, TableRowEventArgs e)
     {
-        _allItems = _tableValue!.Get();
+        //_allItems = _tableValue!.Get();
 
         foreach (var kv in _rowControls.OrderByDescending(x => x.Key).ToList())
         {
@@ -339,7 +342,7 @@ public class DataTable : Grid
 
     private void OnRowRemoved(object? _, TableRowEventArgs e)
     {
-        _allItems = _tableValue!.Get();
+        //_allItems = _tableValue!.Get();
 
         // 修正当前页码：确保当前页不会超过总页数
         var tp = TotalPages;
@@ -370,7 +373,7 @@ public class DataTable : Grid
     }
     private void OnRowReplaced(object? _, TableRowEventArgs e)
     {
-        _allItems = _tableValue!.Get();
+        //_allItems = _tableValue!.Get();
 
         if (OnPage(e.RowIndex))
         {
@@ -380,14 +383,14 @@ public class DataTable : Grid
 
     private void OnRowMoved(object? _, TableRowEventArgs e)
     {
-        _allItems = _tableValue!.Get();
+        //_allItems = _tableValue!.Get();
         FullRebuild();
     }
 
     private void OnCellChanged(object? _, TableRowEventArgs e)
     {
-        // 由选中操作 (SetSelected) 触发的 CellChanged 跳过，避免双重 FullRebuild
-        if (_suppressCellEvent) return;
+        // 由选中操作 (SetSelected) 触发的 CellChanged 跳过，避免双重 FullRebuild，但不跳过全选
+        if (_suppressCellEvent && !_updatingAllHeaderCheckbox) return;
         if (!OnPage(e.RowIndex)) return;
 
         // 增量更新：仅刷新被修改的那个单元格
@@ -410,12 +413,14 @@ public class DataTable : Grid
                 tb.Text = newText;
             else if (child is TextBlock tbk)
                 tbk.Text = newText;
+            else if (child is CheckBox checkBox && e.NewValue is BoolValue boolValue)
+                checkBox.IsChecked = boolValue.Value;
         }
     }
 
     private void OnReset()
     {
-        _allItems = _tableValue!.Get();
+        //_allItems = _tableValue!.Get();
         _currentPage = Math.Min(_currentPage, Math.Max(0, TotalPages - 1));
         FullRebuild();
     }
@@ -458,7 +463,9 @@ public class DataTable : Grid
                 {
                     //var o = _suppressCellEvent;
                     //_suppressCellEvent = false;
+                    _updatingAllHeaderCheckbox = true;
                     ToggleAll(hcb.IsChecked == true);
+                    _updatingAllHeaderCheckbox = false;
                     //_suppressCellEvent = o;
                 }
             };
@@ -476,7 +483,7 @@ public class DataTable : Grid
             Grid.SetColumn(bdr, 0);
             _innerGrid.Children.Add(bdr);
         }
-
+        
         for (int c = colStart; c < _colCount; c++)
         {
             if (cols.Elements[c] is not ObjectValue co)
@@ -614,7 +621,11 @@ public class DataTable : Grid
                 Margin = new Thickness(4, 0)
             };
 
-            cb.IsCheckedChanged += (_, _) => ToggleRow(gIdx, row);
+            cb.IsCheckedChanged += (_, _) =>
+            {
+                if (_updatingAllHeaderCheckbox) return;
+                ToggleRow(gIdx, row);
+            };
 
             var cbCell = new Border
             {
@@ -753,17 +764,18 @@ public class DataTable : Grid
 
     private ArrayValue GetPageItems()
     {
-        if (_allItems == null || _maxCount <= 0)
+        var allItems = _tableValue?.Get();
+        if (allItems is null || _maxCount <= 0)
         {
-            return _allItems ?? new ArrayValue(new List<Value>());
+            return new ArrayValue([]);
         }
 
         var s = _currentPage * _maxCount;
         var l = new List<Value>();
 
-        for (int i = s; i < s + _maxCount && i < _allItems.Elements.Count; i++)
+        for (int i = s; i < s + _maxCount && i < allItems.Elements.Count; i++)
         {
-            l.Add(_allItems.Elements[i]);
+            l.Add(allItems.Elements[i]);
         }
 
         return new ArrayValue(l);
@@ -771,9 +783,10 @@ public class DataTable : Grid
 
     private void BuildPager()
     {
+        var allItems = _tableValue?.Get();
         _pagerPanel.Children.Clear();
 
-        if (_maxCount <= 0 || _allItems == null)
+        if (_maxCount <= 0 || allItems == null)
         {
             return;
         }
@@ -868,7 +881,7 @@ public class DataTable : Grid
         gb.Click += (_, _) => GoToPage();
         _pagerPanel.Children.Add(gb);
 
-        _pageLabel.Text = $"  {_allItems.Elements.Count} 条 | {cp + 1}/{tp}";
+        _pageLabel.Text = $"  {allItems.Elements.Count} 条 | {cp + 1}/{tp}";
         _pagerPanel.Children.Add(_pageLabel);
         // 强制重新测量和排列
         _pagerPanel.InvalidateMeasure();
@@ -923,20 +936,22 @@ public class DataTable : Grid
     {
         if (_selBinding != null && row != null)
         {
-            if(row.Properties[_selBinding] is not BoolValue capOld)
+            // 兼容行对象尚未初始化 _selBinding 属性的场景（默认为未选中）
+            BoolValue capOld;
+            if (row.Properties.TryGetValue(_selBinding, out var existing) && existing is BoolValue bv)
             {
-                return;
+                capOld = bv;
+                if (capOld.Value == s) return; // 已经是目标状态，跳过
             }
-            if(capOld.Value == s)
+            else
             {
-                return;
+                capOld = BoolValue.False;
             }
             var nv = BoolValue.Create(s);
             row.Properties[_selBinding] = nv;
             _suppressCellEvent = true;
             _tableValue?.SetCell(g, _selBinding, capOld, nv);
             _suppressCellEvent = false;
-
         }
         else
         {
@@ -989,19 +1004,16 @@ public class DataTable : Grid
             if (_selBinding != null)
             {
                 // 扫描全表找到旧选中行（binding 值为 true 的行），取消选中
-                var all = _allItems?.Elements;
-                if (all != null)
+                var all =  _tableValue?.Get().Elements ?? [];
+                for (int i = 0; i < all.Count; i++)
                 {
-                    for (int i = 0; i < all.Count; i++)
+                    if (all[i] is ObjectValue orow
+                        && orow.Properties.TryGetValue(_selBinding, out var bv)
+                        && bv.AsBool())
                     {
-                        if (all[i] is ObjectValue orow
-                            && orow.Properties.TryGetValue(_selBinding, out var bv)
-                            && bv.AsBool())
-                        {
-                            SetSelected(i, orow, false);
-                            RefreshRowStyle(i, orow);
-                            break;
-                        }
+                        SetSelected(i, orow, false);
+                        RefreshRowStyle(i, orow);
+                        break;
                     }
                 }
             }
@@ -1009,7 +1021,7 @@ public class DataTable : Grid
             {
                 foreach (var oldG in _selected.ToList())
                 {
-                    var oldRow = _allItems?.Elements.ElementAtOrDefault(oldG) as ObjectValue;
+                    var oldRow = _tableValue?.Get()?.Elements.ElementAtOrDefault(oldG) as ObjectValue;
                     RefreshRowStyle(oldG, oldRow);
                 }
                 _selected.Clear();
@@ -1049,12 +1061,31 @@ public class DataTable : Grid
     {
         _selected.Clear();
 
-        if (_allItems != null && _selBinding != null)
+        var allItems = _tableValue?.Get();
+        if (allItems != null && _selBinding != null)
         {
-            foreach (var e in _allItems.Elements)
+            for (int g = 0; g < allItems.Elements.Count; g++)
             {
+                Value? e = allItems.Elements[g];
                 if (e is ObjectValue o)
                 {
+                    // 兼容行对象尚未初始化 _selBinding 属性的场景（默认为未选中）
+                    BoolValue capOld;
+                    if (o.Properties.TryGetValue(_selBinding, out var existing) && existing is BoolValue bv)
+                    {
+                        capOld = bv;
+                        if (capOld.Value == false) continue; // 已经是目标状态，跳过
+                    }
+                    else
+                    {
+                        capOld = BoolValue.False;
+                    }
+                    var nv = BoolValue.False;
+                    o.Properties[_selBinding] = nv;
+                    _suppressCellEvent = true;
+                    _tableValue?.SetCell(g, _selBinding, capOld, nv);
+                    _suppressCellEvent = false;
+
                     o.Properties[_selBinding!] = BoolValue.False;
                 }
             }

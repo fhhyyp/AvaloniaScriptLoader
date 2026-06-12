@@ -78,10 +78,10 @@ public class TableValue : IDisposable
 
     public ArrayValue Get() 
     { 
-        var el = new List<Value>(_rows.Count); 
+        /*var el = new List<Value>(_rows.Count); 
         foreach (var r in _rows) 
-            el.Add(r); 
-        return new ArrayValue(el); 
+            el.Add(r); */
+        return new ArrayValue(_rows.Select(x => (Value)x).ToList()); 
     }
     public ObjectValue? GetRow(int index) => 
         index >= 0  && index < _rows.Count ? _rows[index] : null;
