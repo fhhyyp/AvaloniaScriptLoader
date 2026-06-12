@@ -5,14 +5,14 @@ var title = "DataTable 数据表"
 var desc = "内置分页 + table() + 模板列 + 选择模式"
 
 var seed = [
-    { name = "张三", email = "zhang@test.com", role = "管理员", age = "32", checked = false },
-    { name = "李四", email = "li@test.com",   role = "编辑",   age = "28", checked = false },
-    { name = "王五", email = "wang@test.com", role = "作者",   age = "35", checked = true  },
-    { name = "赵六", email = "zhao@test.com", role = "读者",   age = "22", checked = false },
-    { name = "孙七", email = "sun@test.com",  role = "读者",   age = "41", checked = false },
-    { name = "周八", email = "zhou@test.com", role = "编辑",   age = "29", checked = false },
-    { name = "吴九", email = "wu@test.com",   role = "作者",   age = "26", checked = true  },
-    { name = "郑十", email = "zheng@test.com",role = "管理员", age = "38", checked = false },
+    { name = "张三", email = "1@test.com", role = "管理员", age = "32", checked = false },
+    { name = "李四", email = "2@test.com",   role = "编辑",   age = "28", checked = false },
+    { name = "王五", email = "3@test.com", role = "作者",   age = "35", checked = false  },
+    { name = "赵六", email = "4@test.com", role = "读者",   age = "22", checked = false },
+    { name = "孙七", email = "5@test.com",  role = "读者",   age = "41", checked = false },
+    { name = "周八", email = "6@test.com", role = "编辑",   age = "29", checked = false },
+    { name = "吴九", email = "7@test.com",   role = "作者",   age = "26", checked = false  },
+    { name = "郑十", email = "8@test.com",role = "管理员", age = "38", checked = false },
 ]
 var allRows = table(seed)
 print(allRows)
@@ -23,14 +23,9 @@ var selectedRows = inpc([])
 var refreshSelected = () => {
     var result = []
     var arr = allRows.get()
-    /* for i in range(0, len(arr)) 
-    { 
-        if (arr[i].checked) { 
-            result = result + [arr[i]] 
-        } 
-    } */
     let arr2 = arr.where(x => x.checked)
-    len table2 = table(arr2)
+    //len table2 = table(arr2)
+    //print(table2)
     selectedRows.set(result)
 }
 
@@ -109,7 +104,7 @@ var render = () => stackpanel({spacing = 10, children = [
             { header = "邮箱", binding = "email", width = "1.5*" },
             { header = "角色", binding = "role", width = "100" },
         ],
-        //items = selectedRows,
+        items = allRows,
         headerStyle = { bg = "#dcfce7", fg = "#166534", fontSize = 12 },
     }),
 ]})

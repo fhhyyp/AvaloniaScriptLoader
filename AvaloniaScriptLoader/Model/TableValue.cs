@@ -42,16 +42,24 @@ public class TableValue : IDisposable
     public ObjectValue Table { get; private set; }
 
     public TableValue(ArrayValue initial) 
-    { 
-        foreach (var e in initial.Elements) 
-            if (e is ObjectValue obj) _rows.Add(obj);
+    {
+        for (int i = 0; i < initial.Elements.Count; i++)
+        {
+            Value? e = initial.Elements[i];
+            if (e is ObjectValue obj)
+            {
+                obj.Set("__index", NumberValueFactory.Create(i));
+                _rows.Add(obj);
+            }
+        }
+            
         Table = WrapTable(this);
     }
 
     private static ObjectValue WrapTable(TableValue tableInstance)
     {
         var d = new Dictionary<string, Value> 
-        { 
+        {
             [ControlMeta.TypeKey] = StringValue.Create("table"), 
             ["__table"] = new ClrObjectValue(tableInstance), 
             ["value"] = tableInstance.Get(),
@@ -89,8 +97,15 @@ public class TableValue : IDisposable
     public void Set(ArrayValue av)
     {
         _rows.Clear();
-        foreach (var e in av.Elements) if (e is ObjectValue obj) 
-            _rows.Add(obj);
+        for (int i = 0; i < av.Elements.Count; i++)
+        {
+            if (av.Elements[i] is ObjectValue obj)
+            {
+                obj.Set("__index", NumberValueFactory.Create(i));
+                _rows.Add(obj);
+            }
+        }
+           
         CollectionReset?.Invoke();
         Notify();
     }
@@ -98,14 +113,22 @@ public class TableValue : IDisposable
     public void AddRow(ObjectValue row) 
     { 
         _rows.Add(row);
-        RowAdded?.Invoke(this, new TableRowEventArgs(_rows.Count - 1, row)); 
+        var index = _rows.Count - 1;
+        row.Set("__index", NumberValueFactory.Create(index));
+        RowAdded?.Invoke(this, new TableRowEventArgs(index, row)); 
         Notify();
     }
 
     public void InsertRow(int index, ObjectValue row)
     {
         if (index < 0 || index > _rows.Count) return;
-        _rows.Insert(index, row); 
+        _rows.Insert(index, row);
+        row.Set("__index", NumberValueFactory.Create(index));
+        for (int i = index + 1; i < _rows.Count; i++)
+        {
+            _rows[i].Set("__index", NumberValueFactory.Create(i));
+        }
+
         RowAdded?.Invoke(this, new TableRowEventArgs(index, row));
         Notify(); 
     }
@@ -113,7 +136,12 @@ public class TableValue : IDisposable
     public void RemoveRow(int index)
     {
         if (index < 0 || index >= _rows.Count) return;
-        var removed = _rows[index]; _rows.RemoveAt(index);
+        var removed = _rows[index]; 
+        _rows.RemoveAt(index);
+        for(int i = index; i < _rows.Count; i++)
+        {
+            _rows[i].Set("__index", NumberValueFactory.Create(i));
+        }
         RowRemoved?.Invoke(this, new TableRowEventArgs(index, removed)); 
         Notify();
     }
@@ -121,7 +149,9 @@ public class TableValue : IDisposable
     public void ReplaceRow(int index, ObjectValue newRow)
     {
         if (index < 0 || index >= _rows.Count) return;
-        var old = _rows[index]; _rows[index] = newRow;
+        var old = _rows[index]; 
+        _rows[index] = newRow;
+        newRow.Set("__index", NumberValueFactory.Create(index));
         RowReplaced?.Invoke(this, new TableRowEventArgs(index, old, newRow)); 
         Notify();
     }
@@ -131,9 +161,12 @@ public class TableValue : IDisposable
         if (oldIndex < 0 || oldIndex >= _rows.Count
             || newIndex < 0 || newIndex >= _rows.Count) 
             return;
-        var row = _rows[oldIndex]; 
+        _rows[newIndex].Set("__index", NumberValueFactory.Create(oldIndex));
+        _rows[oldIndex].Set("__index", NumberValueFactory.Create(newIndex));
+        var row = _rows[oldIndex];
         _rows.RemoveAt(oldIndex); 
         _rows.Insert(newIndex, row);
+       
         RowMoved?.Invoke(this, new TableRowEventArgs(newIndex, row)
         { 
             OldIndex = oldIndex, 
@@ -144,6 +177,7 @@ public class TableValue : IDisposable
 
     public void SetCell(int index, string key, Value oldValue, Value newValue)
     {
+        var t = this._rows;
         Debug.WriteLine($"{index} {key} {oldValue} {newValue}");
         if (index < 0 || index >= _rows.Count) return;
         _rows[index].Properties[key] = newValue;

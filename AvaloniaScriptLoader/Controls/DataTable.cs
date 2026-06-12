@@ -66,6 +66,9 @@ public class DataTable : Grid
     private int _cellFontSize = 12;
     private int _hdrFontSize = 12;
 
+    /// <summary> 索引对照表 </summary>
+    private Dictionary<int, int> _indexComparison = [];
+
     public DataTable()
     {
         _scroller.Content = _innerGrid;
@@ -371,6 +374,7 @@ public class DataTable : Grid
             BuildPager();
         }
     }
+
     private void OnRowReplaced(object? _, TableRowEventArgs e)
     {
         //_allItems = _tableValue!.Get();
@@ -390,11 +394,13 @@ public class DataTable : Grid
     private void OnCellChanged(object? _, TableRowEventArgs e)
     {
         // 由选中操作 (SetSelected) 触发的 CellChanged 跳过，避免双重 FullRebuild，但不跳过全选
-        if (_suppressCellEvent && !_updatingAllHeaderCheckbox) return;
+        if (_suppressCellEvent /*&& !_updatingAllHeaderCheckbox*/) return;
         if (!OnPage(e.RowIndex)) return;
+        if (!_indexComparison.TryGetValue(e.RowIndex, out var comparisonControlIndex)) return;
 
         // 增量更新：仅刷新被修改的那个单元格
-        if (!_rowControls.TryGetValue(e.RowIndex, out var controls)) return;
+        
+        if (!_rowControls.TryGetValue(comparisonControlIndex, out var controls)) return;
         if (string.IsNullOrEmpty(e.Key)) return;
 
         var colIndex = Array.IndexOf(_bindings, e.Key);
@@ -413,8 +419,8 @@ public class DataTable : Grid
                 tb.Text = newText;
             else if (child is TextBlock tbk)
                 tbk.Text = newText;
-            else if (child is CheckBox checkBox && e.NewValue is BoolValue boolValue)
-                checkBox.IsChecked = boolValue.Value;
+            //else if (child is CheckBox checkBox && e.NewValue is BoolValue boolValue)
+            //    checkBox.IsChecked = boolValue.Value;
         }
     }
 
@@ -536,7 +542,7 @@ public class DataTable : Grid
             if (srt)
             {
                 hdr.Cursor = new Cursor(StandardCursorType.Hand);
-
+                // 排序
                 hdr.PointerPressed += (_, _) =>
                 {
                     if (_sortCol == _bindings[capC])
@@ -588,12 +594,17 @@ public class DataTable : Grid
 
         var av = GetPageItems();
         var rows = GetSorted(av);
+
+        
+
         var start = _currentPage * _maxCount;
 
         for (int r = 0; r < rows.Count; r++)
         {
             InsertRow(r, start + r, rows[r]);
         }
+
+        _indexComparison = rows.Select((x, i) => (i, x.Get("__index").As<int>())).ToDictionary(k => k.Item2, v => v.i);
 
         UpdateSortArrows();
         UpdateHeaderCheckbox();
@@ -697,27 +708,33 @@ public class DataTable : Grid
                     };
 
                     var capKey = key;
-                    var capGIdx = gIdx;
-                    var capOld = raw;
-                    var tv = _tableValue;
-
-                    tb.TextChanged += (_, _) =>
+                    //var capGIdx = gIdx;
+                    //var capOld = raw;
+                    tb.Tag = row;
+                    tb.TextChanged += tb_TextChangedEvent;
+                    child = tb;
+                    void tb_TextChangedEvent(object? sender, TextChangedEventArgs e)
                     {
-                        var newText = tb.Text ?? "";
-                        var oldText = capOld is StringValue os ? os.Value : raw.AsString();
-
-                        if (newText == oldText)
+                        if (sender is TextBox tb 
+                            && tb.Tag is ObjectValue value
+                            && value.TryGetValue("__index", out var indexValue)
+                            && indexValue is NumberValue<int> index)
+                        {
+                            var newText = tb.Text ?? "";
+                            var oldValue = value.Get(capKey);
+                            var oldText = oldValue is StringValue os ? os.Value : raw.AsString();
+                            if (newText == oldText)
+                            {
+                                return;
+                            }
+                            var newValue = StringValue.Create(newText);
+                            _tableValue?.SetCell(index.Value, capKey, oldValue, newValue);
+                        }
+                        else
                         {
                             return;
                         }
-
-                        var nv = StringValue.Create(newText);
-                        row.Properties[capKey] = nv;
-                        tv?.SetCell(capGIdx, capKey, capOld, nv);
-                        capOld = nv;
-                    };
-
-                    child = tb;
+                    }
                 }
             }
 
@@ -813,7 +830,7 @@ public class DataTable : Grid
 
             _pagerPanel.Children.Add(b);
         }
-
+        
         B("<<", 0, cp > 0);
         B("<", cp - 1, cp > 0);
 
@@ -928,6 +945,8 @@ public class DataTable : Grid
                     tbk.Foreground = fg;
                 else if (border.Child is TextBox tb)
                     tb.Foreground = fg;
+                //else if (border.Child is CheckBox checkBox )
+                //    checkBox.IsChecked = 
             }
         }
     }
@@ -950,7 +969,8 @@ public class DataTable : Grid
             var nv = BoolValue.Create(s);
             row.Properties[_selBinding] = nv;
             _suppressCellEvent = true;
-            _tableValue?.SetCell(g, _selBinding, capOld, nv);
+            var index = row.Get("__index").As<int>();
+            _tableValue?.SetCell(index, _selBinding, capOld, nv);
             _suppressCellEvent = false;
         }
         else
@@ -1004,7 +1024,7 @@ public class DataTable : Grid
             if (_selBinding != null)
             {
                 // 扫描全表找到旧选中行（binding 值为 true 的行），取消选中
-                var all =  _tableValue?.Get().Elements ?? [];
+                var all = _tableValue?.Get().Elements ?? [];
                 for (int i = 0; i < all.Count; i++)
                 {
                     if (all[i] is ObjectValue orow
@@ -1026,6 +1046,7 @@ public class DataTable : Grid
                 }
                 _selected.Clear();
             }
+
             SetSelected(g, o, true);
             RefreshRowStyle(g, o);
         }
@@ -1034,7 +1055,11 @@ public class DataTable : Grid
             SetSelected(g, o, !IsSelected(g, o));
             RefreshRowStyle(g, o);
         }
-        else return;
+        else
+        {
+            return;
+        }
+
 
         UpdateHeaderCheckbox();
     }
@@ -1067,11 +1092,11 @@ public class DataTable : Grid
             for (int g = 0; g < allItems.Elements.Count; g++)
             {
                 Value? e = allItems.Elements[g];
-                if (e is ObjectValue o)
+                if (e is ObjectValue row)
                 {
                     // 兼容行对象尚未初始化 _selBinding 属性的场景（默认为未选中）
                     BoolValue capOld;
-                    if (o.Properties.TryGetValue(_selBinding, out var existing) && existing is BoolValue bv)
+                    if (row.Properties.TryGetValue(_selBinding, out var existing) && existing is BoolValue bv)
                     {
                         capOld = bv;
                         if (capOld.Value == false) continue; // 已经是目标状态，跳过
@@ -1081,12 +1106,13 @@ public class DataTable : Grid
                         capOld = BoolValue.False;
                     }
                     var nv = BoolValue.False;
-                    o.Properties[_selBinding] = nv;
+                    row.Properties[_selBinding] = nv;
                     _suppressCellEvent = true;
-                    _tableValue?.SetCell(g, _selBinding, capOld, nv);
+                    var index =  row.Get("__index").As<int>();
+                    _tableValue?.SetCell(index, _selBinding, capOld, nv);
                     _suppressCellEvent = false;
 
-                    o.Properties[_selBinding!] = BoolValue.False;
+                    row.Properties[_selBinding!] = BoolValue.False;
                 }
             }
         }
@@ -1109,22 +1135,15 @@ public class DataTable : Grid
 
     private List<ObjectValue> GetSorted(ArrayValue? av = null)
     {
-        av ??= GetPageItems();
-
+        //av ??= GetPageItems();
+        av ??= _tableValue?.Get(); 
         var list = new List<ObjectValue>();
 
         if (av == null)
         {
             return list;
         }
-
-        foreach (var e in av.Elements)
-        {
-            if (e is ObjectValue obj)
-            {
-                list.Add(obj);
-            }
-        }
+        list = av.Elements.OfType<ObjectValue>().ToList();
 
         if (_sortCol == null)
         {
@@ -1149,6 +1168,6 @@ public class DataTable : Grid
                 : ci.Compare(vb.AsString(), va.AsString(), System.Globalization.CompareOptions.None);
         });
 
-        return list;
+        return list.Take(_maxCount).ToList();
     }
 }
