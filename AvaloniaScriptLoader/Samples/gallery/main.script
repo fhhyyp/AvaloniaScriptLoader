@@ -2,9 +2,10 @@
 //  AvaloniaScriptLoader — 控件画廊 (Control Gallery)
 //  展示全部 22 种控件 + 响应式特性 + 实际场景示例
 // ═══════════════════════════════════════════════════════════
-import { app, inpc, computed, vif } from "avalonia"
+import { app, inpc, computed, vif, style } from "avalonia"
 import { window, grid, stackpanel, button, label, textbox, checkbox, combobox, listbox, slider, progressbar, datepicker, timepicker, border, image, scrollviewer, tabcontrol, tabitem, dialog, expander, menuitem, separator, menu, navmenu, navmenuitem, navmenugroup } from "avalonia.controls"
 import { _loaded } from "styles.script"
+
 
 var currentPage = inpc("label")
 
@@ -370,6 +371,38 @@ let demoToast = () => demoSection("Toast 通知",
     ]})
 )
 
+// ═══ PseudoClass ═══
+let enablePseudoTest = inpc(true, "twoway")
+// ═══ 伪类样式测试 ═══
+style("pseudoBtn",              {background = "#6366f1", color = "#ffffff", fontSize = 13})
+style("pseudoBtn:pointerover",  {background = "#818cf8"})                              // 悬停
+style("pseudoBtn:pressed",      {background = "#4f46e5"})                              // 按下
+style("pseudoBtn:focus",        {borderBrush = "#f59e0b", borderThickness = 2})        // 获焦
+style("pseudoBtn:disabled",     {opacity = 0.4})                                       // 禁用
+
+style("pseudoCard",             {background = "#ffffff", padding = 14, borderThickness = 1, borderBrush = "#e2e8f0", cornerRadius = 6})
+style("pseudoCard:pointerover", {borderBrush = "#6366f1", background = "#eef2ff"})     // 卡片悬停
+
+style("pseudoInput",            {background = "#ffffff", color = "#1e293b"})
+style("pseudoInput:focus",      {borderBrush = "#6366f1", borderThickness = 2})        // 输入获焦
+
+let demoPseudoClass = () => demoSection("PseudoClass 伪类样式",
+    "style('name:pseudo', {...}) — CSS 风格交互状态: :pointerover / :pressed / :focus / :disabled",
+    stackpanel({spacing = 12, children = [
+        label({text = "悬停/按下/获焦按钮:", fontSize = 12}),
+        button({text = "悬停改变颜色，按下更深，获焦显示边框", class = "pseudoBtn"}),
+        label({text = "↑ 移动鼠标、点击、按 Tab 切换焦点观察变化", fontSize = 11, color = "#64748b"}),
+        label({text = "禁用状态:", fontSize = 12}),
+        checkbox({text = "启用按钮", checked = enablePseudoTest}),
+        button({text = "禁用时的半透明按钮", class = "pseudoBtn",
+            enabled = computed(() => enablePseudoTest.get())}),
+        label({text = "↑ 取消勾选查看 :disabled 样式", fontSize = 11, color = "#64748b"}),
+        label({text = "卡片悬停:", fontSize = 12}),
+        border({class = "pseudoCard",
+            content = label({text = "鼠标移到此卡片上，边框变紫，背景变蓝", fontSize = 12, color = "#334155"})}),
+    ]})
+)
+
 // ═══ Style ═══
 let demoStyle = () => demoSection("Style 样式系统",
     "全局 class + 属性缩写 bg/size/halign/valign/radius",
@@ -412,7 +445,7 @@ var catAdvanced = computed(() => {
 })
 var catFramework = computed(() => {
     var p = currentPage.get()
-    if (p == "reactive" || p == "tooltip" || p == "style" || p == "toast") { return true }
+    if (p == "reactive" || p == "tooltip" || p == "style" || p == "toast" || p == "pseudoclass") { return true }
     return false
 })
 
@@ -470,7 +503,8 @@ let main = window({
                                         navmenuitem({text = "响应式绑定" ,   onClick = () => { currentPage.set("reactive") }}),
                                         navmenuitem({text = "ToolTip 提示",  onClick = () => { currentPage.set("tooltip") }}),
                                         navmenuitem({text = "Style 样式"  ,  onClick = () => { currentPage.set("style") }}),
-                                        navmenuitem({text = "Toast 通知"  ,  onClick = () => { currentPage.set("toast") }})
+                                        navmenuitem({text = "Toast 通知"  ,  onClick = () => { currentPage.set("toast") }}),
+                                    navmenuitem({text = "伪类样式"  ,  onClick = () => { currentPage.set("pseudoclass") }})
                                     ]})
                                 ]})
                             ]}),
@@ -522,7 +556,8 @@ let main = window({
                                         vif(isPage("reactive"),    demoReactive()),
                                         vif(isPage("tooltip"),     demoTooltip()),
                                         vif(isPage("style"),       demoStyle()),
-                                        vif(isPage("toast"),      demoToast())
+                                        vif(isPage("toast"),      demoToast()),
+                                        vif(isPage("pseudoclass"), demoPseudoClass())
                                     ]})
                                 ]})
                             })

@@ -16,6 +16,8 @@ style("badgeDanger",  {"background" = "#fde2e2", "color" = "#c01020", "fontSize"
 style("badgeInfo",    {"background" = "#e3f2fd", "color" = "#1976D2", "fontSize" = 11})
 style("avatar",      {"background" = "#e0e0f0", "width" = 44, "height" = 44})
 
+
+})
 return {
     "_loaded" = true
 }

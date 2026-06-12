@@ -97,6 +97,9 @@ public class ControlBuilder
         // 2. 注册事件处理器
         RegisterEvents(control, descriptor);
 
+        // 2.5. 注册伪类样式事件（:pointerover / :focus / :disabled / :pressed）
+        StyleFactory.ExpandPseudoClassStyles(control, descriptor, _binder);
+
         // 3. 创建并激活 ControlWrapper
         var wrapper = new ControlWrapper(control, descriptor);
         wrapper.Builder = this;
