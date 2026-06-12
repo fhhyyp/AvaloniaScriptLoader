@@ -177,15 +177,16 @@ public static class InpcFactory
     // table(initialArray) — 响应式表格数组
     // ========================================================================
 
+   
+
     public static FunctionValue CreateTableFunction()
     {
         return new FunctionValue("table", args =>
         {
             if (args.Count < 1 || args[0] is not ArrayValue av)
                 throw new ArgumentException("table() 期望 1 个数组参数");
-            var tableInstance = new TableValue(av);
-            var table = tableInstance.Table;
-            return table;
+            var t = new TableValue(av);
+            return t.Table; 
         });
     }
 
