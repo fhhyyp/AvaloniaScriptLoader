@@ -7,6 +7,7 @@ using AvaloniaScriptLoader.Factory;
 using AvaloniaScriptLoader.Model;
 using AvaloniaScriptLoader.Wrapper;
 using System.Diagnostics;
+using ScriptLang;
 
 namespace AvaloniaScriptLoader.Builder;
 
@@ -528,8 +529,9 @@ public class ControlBuilder
 
     private static void LogEventError(string eventName, Exception ex)
     {
-        System.Diagnostics.Debug.WriteLine(
-            $"[Script Event] 事件 '{eventName}' 处理器异常: {ex.Message}");
+      /*  System.Diagnostics.Debug.WriteLine(
+            $"[Script Event] 事件 '{eventName}' 处理器异常: {ex.Message}");*/
+        ScriptLog.Error($"[Script Event] 事件 '{eventName}' 处理器异常: {ex}");
     }
 
     // ========================================================================

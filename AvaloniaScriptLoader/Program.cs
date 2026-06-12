@@ -1,17 +1,15 @@
-using Avalonia;
 using System;
+using Avalonia;
+using ScriptLang;
 
 namespace AvaloniaScriptLoader;
 
 internal class Program
 {
     [STAThread]
-    public static void Main(string[] args)
+    public static async Task Main(string[] args)
     {
-        DateTime dt1 = DateTime.Now;
-        DateTime dt2 = DateTime.Now;
-        TimeSpan sp = dt1 - dt2;
-        
+        //ScriptLog.IsWriteLogFile = true;
         BuildAvaloniaApp()
             .StartWithClassicDesktopLifetime(args);
     }

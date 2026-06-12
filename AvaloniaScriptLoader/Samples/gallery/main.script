@@ -416,6 +416,47 @@ let demoStyle = () => demoSection("Style 样式系统",
     ]})
 )
 
+// ═══ Dynamic Import ═══
+let dynModuleState = inpc("点击按钮加载模块")
+let dynFeaturesState = inpc("—")
+let dynVersionState = inpc("—")
+
+let demoDynamicImport = () => demoSection("动态 import()",
+    "import(\"path\") — 运行时按需加载脚本模块，返回模块 exports 对象。支持自动缓存",
+    stackpanel({spacing = 8, children = [
+        stackpanel({orientation = "horizontal", spacing = 8, children = [
+            button({text = "📦 加载 info 模块", class = "btnPrimary",
+                onClick = () => {
+                    //let mod = import("modules/info.script")
+                    //let info = mod.getInfo()
+                    //let f = mod.getFeatures()
+                    //let v =  mod.version
+                    //dynModuleState.set(info)
+                    //dynFeaturesState.set("特性: " + f)
+                    //dynVersionState.set("版本: " + v)
+                    let mod = import("modules/info.script")
+                    //let f = mod.getFeatures() // 正常获取值 features
+                    //print("===============特性: " + f) 
+                    //print(1, 2, "3", mod.getFeatures() ) // Call - 无法调用类型为 NumberValue`1 的值
+                    //print("=TEST1=特性: ", mod.getFeatures() ) //Call - 无法调用类型为 NullValue 的值
+                    //print("=TEST2=特性: " + mod.getFeatures()) //Call - 无法调用类型为 BoolValue 的值
+                    
+                    dynModuleState.set(mod.getInfo())
+                    dynFeaturesState.set("特性: " + mod.getFeatures())
+                    dynVersionState.set("版本: " + mod.version)                
+                }}),
+            button({text = "🔄 再次加载（缓存）", class = "btnGhost",
+                onClick = () => {
+                    var mod = import("modules/info.script")
+                    dynModuleState.set("[缓存命中] " + mod.getInfo())
+                }}),
+        ]}),
+        label({text = dynModuleState, fontSize = 12, color = "#1e293b"}),
+        label({text = dynFeaturesState, fontSize = 11, color = "#4338ca"}),
+        label({text = dynVersionState, fontSize = 11, color = "#64748b"}),
+    ]})
+)
+
 // ═══ 分类折叠导航 ═══
 // 每个分类的展开状态：当前激活页属于该分类时自动展开
 var catBasic = computed(() => {
@@ -445,7 +486,7 @@ var catAdvanced = computed(() => {
 })
 var catFramework = computed(() => {
     var p = currentPage.get()
-    if (p == "reactive" || p == "tooltip" || p == "style" || p == "toast" || p == "pseudoclass") { return true }
+    if (p == "reactive" || p == "tooltip" || p == "style" || p == "toast" || p == "pseudoclass" || p == "dynimport") { return true }
     return false
 })
 
@@ -504,7 +545,8 @@ let main = window({
                                         navmenuitem({text = "ToolTip 提示",  onClick = () => { currentPage.set("tooltip") }}),
                                         navmenuitem({text = "Style 样式"  ,  onClick = () => { currentPage.set("style") }}),
                                         navmenuitem({text = "Toast 通知"  ,  onClick = () => { currentPage.set("toast") }}),
-                                    navmenuitem({text = "伪类样式"  ,  onClick = () => { currentPage.set("pseudoclass") }})
+                                    navmenuitem({text = "伪类样式"  ,  onClick = () => { currentPage.set("pseudoclass") }}),
+                                    navmenuitem({text = "动态import",  onClick = () => { currentPage.set("dynimport") }})
                                     ]})
                                 ]})
                             ]}),
@@ -557,7 +599,8 @@ let main = window({
                                         vif(isPage("tooltip"),     demoTooltip()),
                                         vif(isPage("style"),       demoStyle()),
                                         vif(isPage("toast"),      demoToast()),
-                                        vif(isPage("pseudoclass"), demoPseudoClass())
+                                        vif(isPage("pseudoclass"), demoPseudoClass()),
+                                    vif(isPage("dynimport"),  demoDynamicImport())
                                     ]})
                                 ]})
                             })

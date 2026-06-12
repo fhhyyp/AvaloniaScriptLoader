@@ -1,0 +1,32 @@
+// ═══ 动态模块示例 — info.script ═══
+// 通过 import("modules/info.script") 按需加载
+
+let appName = "AvaloniaScriptLoader"
+let version = "1.0"
+let features = ["动态 import()", "伪类样式", "NavMenu 导航", "Toast 通知", "MenuBar 菜单栏", "无边框窗口"]
+let createAt = now()
+
+let getInfo = () => {
+    return appName + " v" + version + ", " + len(features) + " 项核心特性, 构建时间 " + createAt.toString("yyyy-MM-dd HH:mm")
+}
+
+let getFeatures = () => {
+    var result = ""
+    for i in range(0, len(features)) {
+        if (i > 0) then {
+             result = result + ", "
+        }
+        result = result + features[i]
+    }
+    return result
+}
+
+let page = {
+    "appName" = appName,
+    "version" = version,
+    "features" = features,
+    "getInfo" = getInfo,
+    "getFeatures" = getFeatures,
+}
+
+return page
