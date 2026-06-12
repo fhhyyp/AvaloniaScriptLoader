@@ -25,7 +25,6 @@ public static class ControlsModule
             ["listbox"]      = ControlFactory.CreateListBoxFactory(),
             ["stackpanel"]   = ControlFactory.CreateStackPanelFactory(),
             ["grid"]         = ControlFactory.CreateGridFactory(),
-            // 新增控件
             ["image"]        = ControlFactory.CreateImageFactory(),
             ["scrollviewer"] = ControlFactory.CreateScrollViewerFactory(),
             ["border"]       = ControlFactory.CreateBorderFactory(),
