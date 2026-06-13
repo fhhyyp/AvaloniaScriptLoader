@@ -27,6 +27,8 @@ public class TableValue : IDisposable
 {
     private readonly List<ObjectValue> _rows = new();
     private readonly List<Action<Value>> _subscribers = new();
+    private readonly object _lock = new();
+    private readonly HashSet<ComputedValue> _dependents = [];
     private bool _disposed;
 
     // 类型化事件
@@ -84,12 +86,11 @@ public class TableValue : IDisposable
         return new ObjectValue(d);
     }
 
-    public ArrayValue Get() 
-    { 
-        /*var el = new List<Value>(_rows.Count); 
-        foreach (var r in _rows) 
-            el.Add(r); */
-        return new ArrayValue(_rows.Select(x => (Value)x).ToList()); 
+    public ArrayValue Get()
+    {
+        // 自动注册到 ReactiveTracker，使 computed() 能追踪此 TableValue 为依赖
+        ReactiveTracker.Current?.AddTableDependency(this);
+        return new ArrayValue(_rows.Select(x => (Value)x).ToList());
     }
     public ObjectValue? GetRow(int index) => 
         index >= 0  && index < _rows.Count ? _rows[index] : null;
@@ -190,25 +191,58 @@ public class TableValue : IDisposable
         Notify();
     }
 
-    public void OnChange(Action<Value> callback) 
-    { 
-        lock (_subscribers) 
-            _subscribers.Add(callback); 
+    public void OnChange(Action<Value> callback)
+    {
+        lock (_subscribers)
+            _subscribers.Add(callback);
     }
 
-    private void Notify() 
+    // ========================================================================
+    // ComputedValue 依赖管理（与 InpcValue 同模式）
+    // ========================================================================
+
+    internal void AddDependent(ComputedValue cv)
     {
-        if (_disposed) return; 
-        var s = Get(); 
-        foreach (var cb in _subscribers) 
-            cb(s);
+        if (_disposed) return;
+        lock (_lock) { _dependents.Add(cv); }
+    }
+
+    internal void RemoveDependent(ComputedValue cv)
+    {
+        lock (_lock) { _dependents.Remove(cv); }
+    }
+
+    private void Notify()
+    {
+        if (_disposed) return;
+        var s = Get();
+
+        // 1. 通知 OnChange 订阅者
+        Action<Value>[] subs;
+        lock (_subscribers) subs = _subscribers.ToArray();
+        foreach (var cb in subs) cb(s);
+
+        // 2. 无效化依赖的 ComputedValue（链式传播）
+        ComputedValue[] deps;
+        lock (_lock) deps = _dependents.ToArray();
+        foreach (var cv in deps)
+        {
+            try { cv.Invalidate(); }
+            catch (Exception ex) { Debug.WriteLine($"[TableValue] Computed invalidate error: {ex.Message}"); }
+        }
     }
 
     public void Dispose()
-    { 
+    {
+        if (_disposed) return;
         _disposed = true;
-        _rows.Clear(); 
+
+        _rows.Clear();
         _subscribers.Clear();
+
+        ComputedValue[] deps;
+        lock (_lock) { deps = _dependents.ToArray(); _dependents.Clear(); }
+        foreach (var cv in deps) cv.RemoveTableDependency(this);
     }
 }
 

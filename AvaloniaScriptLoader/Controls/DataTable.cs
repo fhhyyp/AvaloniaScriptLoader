@@ -782,9 +782,13 @@ public class DataTable : Grid
     private ArrayValue GetPageItems()
     {
         var allItems = _tableValue?.Get();
-        if (allItems is null || _maxCount <= 0)
+        if (allItems is null)
         {
             return new ArrayValue([]);
+        }
+        if (_maxCount <= 0)
+        {
+            return allItems;
         }
 
         var s = _currentPage * _maxCount;

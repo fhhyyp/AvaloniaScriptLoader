@@ -38,7 +38,14 @@ var removeRow = () => {
 let selectItems = computed(()=> {
     let items = allRows.get().where(x => x.checked)
     print("items", items)
-    return table(items)
+    print("selectItems", selectItems)
+    let t = table(items)
+    return t
+})
+let selectCount = computed(() => {
+    let count = allRows.get().where(x => x.checked).count
+    print("count:",count)
+    return "✅ 已选项 (" + count + " 条)"
 })
 
 var render = () => stackpanel({spacing = 10, children = [
@@ -88,7 +95,7 @@ var render = () => stackpanel({spacing = 10, children = [
     ]}),
 
     // 已选项
-    label({text = computed(() => "✅ 已选项 (" + selectItems.get().count + " 条)"), fontSize = 12, color = "#166534"}),
+    label({text = selectCount, fontSize = 12, color = "#166534"}),
     datatable({
         height = 500,
         columns = [
