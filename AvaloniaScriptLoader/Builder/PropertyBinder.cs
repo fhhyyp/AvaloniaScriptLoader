@@ -152,7 +152,7 @@ public class PropertyBinder
                             updating = true;
                             try
                             {
-                                inpc.Set(new DateTimeValue(e.NewDate.Value.DateTime));
+                                inpc.Set(new DateTimeValue(e.NewDate.Value.LocalDateTime));
                             }
                             finally
                             {
@@ -396,7 +396,7 @@ public class PropertyBinder
         {
             case "selectedDate":
                 if (value is DateTimeValue dtv)
-                    dp.SelectedDate = new DateTimeOffset(dtv.Value);
+                    dp.SelectedDate = new DateTimeOffset(dtv.Value.ToLocalTime());
                 else if (value is StringValue sv && DateTime.TryParse(sv.Value, out var dt))
                     dp.SelectedDate = new DateTimeOffset(dt);
                 else if (DateTime.TryParse(value.AsString(), out var dt2))

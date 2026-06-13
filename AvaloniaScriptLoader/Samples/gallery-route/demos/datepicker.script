@@ -3,6 +3,7 @@ import { stackpanel, label, datepicker } from "avalonia.controls"
 
 var title = "DatePicker 日期选择"
 var desc = "date() / now() 创建 DateTimeValue，twoway 双向绑定 + 联动显示"
+print(date("2000-01-01"))
 var birth = inpc(date("2000-01-01"), "twoway")
 var startDate = inpc(now(), "twoway")
 

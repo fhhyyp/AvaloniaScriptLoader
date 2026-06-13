@@ -10,7 +10,7 @@ var log = inpc([
 ], "twoway")
 
 var render = () => stackpanel({spacing = 10, children = [
-    listbox({items = log, height = 130, width = 420}),
+    listbox({items = log, height = 330, width = 420}),
     stackpanel({orientation = "horizontal", spacing = 8, children = [
         button({text = "+ 新增日志", onClick = () => {
             var arr = log.get()

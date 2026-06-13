@@ -432,7 +432,7 @@ public class ControlBuilder
                     {
                         try
                         {
-                            var dt = e.NewDate?.DateTime ?? System.DateTime.Now;
+                            var dt = e.NewDate?.LocalDateTime ?? System.DateTime.Now;
                             var args = Evt("change", ("selectedDate", new DateTimeValue(dt)));
                             await changeFunc.CallAsync(engine, [args]);
                         }
