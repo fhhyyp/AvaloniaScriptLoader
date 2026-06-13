@@ -420,7 +420,7 @@ public class PropertyBinder
         {
             case "selectedTime":
                 if (value is DateTimeValue dtv)
-                    tp.SelectedTime = dtv.Value.TimeOfDay;
+                    tp.SelectedTime = dtv.Value.ToLocalTime().TimeOfDay;
                 else if (value is StringValue sv && System.TimeSpan.TryParse(sv.Value, out var ts))
                     tp.SelectedTime = ts;
                 else if (System.TimeSpan.TryParse(value.AsString(), out var ts2))
