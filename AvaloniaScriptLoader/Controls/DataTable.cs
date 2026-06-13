@@ -604,7 +604,9 @@ public class DataTable : Grid
             InsertRow(r, start + r, rows[r]);
         }
 
-        _indexComparison = rows.Select((x, i) => (i, x.Get("__index").As<int>())).ToDictionary(k => k.Item2, v => v.i);
+        _indexComparison = rows.Select((x, i) => (i, _tableValue!.GetRowIndex(x)))
+            .Where(x => x.Item2 >= 0)
+            .ToDictionary(k => k.Item2, v => v.i);
 
         UpdateSortArrows();
         UpdateHeaderCheckbox();
@@ -715,11 +717,11 @@ public class DataTable : Grid
                     child = tb;
                     void tb_TextChangedEvent(object? sender, TextChangedEventArgs e)
                     {
-                        if (sender is TextBox tb 
-                            && tb.Tag is ObjectValue value
-                            && value.TryGetValue("__index", out var indexValue)
-                            && indexValue is NumberValue<int> index)
+                        if (sender is TextBox tb
+                            && tb.Tag is ObjectValue value)
                         {
+                            var index = _tableValue?.GetRowIndex(value) ?? -1;
+                            if (index < 0) return;
                             var newText = tb.Text ?? "";
                             var oldValue = value.Get(capKey);
                             var oldText = oldValue is StringValue os ? os.Value : raw.AsString();
@@ -728,7 +730,7 @@ public class DataTable : Grid
                                 return;
                             }
                             var newValue = StringValue.Create(newText);
-                            _tableValue?.SetCell(index.Value, capKey, oldValue, newValue);
+                            _tableValue?.SetCell(index, capKey, oldValue, newValue);
                         }
                         else
                         {
@@ -973,8 +975,9 @@ public class DataTable : Grid
             var nv = BoolValue.Create(s);
             row.Properties[_selBinding] = nv;
             _suppressCellEvent = true;
-            var index = row.Get("__index").As<int>();
-            _tableValue?.SetCell(index, _selBinding, capOld, nv);
+            var index = _tableValue?.GetRowIndex(row) ?? -1;
+            if (index >= 0)
+                _tableValue?.SetCell(index, _selBinding, capOld, nv);
             _suppressCellEvent = false;
         }
         else
@@ -1112,8 +1115,9 @@ public class DataTable : Grid
                     var nv = BoolValue.False;
                     row.Properties[_selBinding] = nv;
                     _suppressCellEvent = true;
-                    var index =  row.Get("__index").As<int>();
-                    _tableValue?.SetCell(index, _selBinding, capOld, nv);
+                    var index = _tableValue?.GetRowIndex(row) ?? -1;
+                    if (index >= 0)
+                        _tableValue?.SetCell(index, _selBinding, capOld, nv);
                     _suppressCellEvent = false;
 
                     row.Properties[_selBinding!] = BoolValue.False;

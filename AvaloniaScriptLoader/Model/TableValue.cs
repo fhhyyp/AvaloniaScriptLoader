@@ -29,6 +29,8 @@ public class TableValue : IDisposable
     private readonly List<Action<Value>> _subscribers = new();
     private readonly object _lock = new();
     private readonly HashSet<ComputedValue> _dependents = [];
+    /// <summary>对象引用 → 行索引映射（替代 ObjectValue.__index，避免多表共享对象时互相覆盖）</summary>
+    private readonly Dictionary<ObjectValue, int> _objectToIndex = [];
     private bool _disposed;
 
     // 类型化事件
@@ -43,18 +45,18 @@ public class TableValue : IDisposable
 
     public ObjectValue Table { get; private set; }
 
-    public TableValue(ArrayValue initial) 
+    public TableValue(ArrayValue initial)
     {
         for (int i = 0; i < initial.Elements.Count; i++)
         {
             Value? e = initial.Elements[i];
             if (e is ObjectValue obj)
             {
-                obj.Set("__index", NumberValueFactory.Create(i));
+                _objectToIndex[obj] = i;
                 _rows.Add(obj);
             }
         }
-            
+
         Table = WrapTable(this);
     }
 
@@ -92,31 +94,51 @@ public class TableValue : IDisposable
         ReactiveTracker.Current?.AddTableDependency(this);
         return new ArrayValue(_rows.Select(x => (Value)x).ToList());
     }
-    public ObjectValue? GetRow(int index) => 
+    public ObjectValue? GetRow(int index) =>
         index >= 0  && index < _rows.Count ? _rows[index] : null;
+
+    /// <summary>
+    /// 获取行对象在当前表中的索引。若对象不在表中返回 -1。
+    /// 替代原有的 row.Get("__index") 模式，使用对象引用查找，避免多表共享对象时 __index 被覆盖。
+    /// </summary>
+    public int GetRowIndex(ObjectValue row)
+    {
+        lock (_lock) { return _objectToIndex.TryGetValue(row, out var idx) ? idx : -1; }
+    }
+
+    private void SetRowIndex(ObjectValue row, int index)
+    {
+        lock (_lock) { _objectToIndex[row] = index; }
+    }
+
+    private void RemoveRowIndex(ObjectValue row)
+    {
+        lock (_lock) { _objectToIndex.Remove(row); }
+    }
 
     public void Set(ArrayValue av)
     {
         _rows.Clear();
+        lock (_lock) { _objectToIndex.Clear(); }
         for (int i = 0; i < av.Elements.Count; i++)
         {
             if (av.Elements[i] is ObjectValue obj)
             {
-                obj.Set("__index", NumberValueFactory.Create(i));
+                _objectToIndex[obj] = i;
                 _rows.Add(obj);
             }
         }
-           
+
         CollectionReset?.Invoke();
         Notify();
     }
 
-    public void AddRow(ObjectValue row) 
-    { 
+    public void AddRow(ObjectValue row)
+    {
         _rows.Add(row);
         var index = _rows.Count - 1;
-        row.Set("__index", NumberValueFactory.Create(index));
-        RowAdded?.Invoke(this, new TableRowEventArgs(index, row)); 
+        SetRowIndex(row, index);
+        RowAdded?.Invoke(this, new TableRowEventArgs(index, row));
         Notify();
     }
 
@@ -124,54 +146,56 @@ public class TableValue : IDisposable
     {
         if (index < 0 || index > _rows.Count) return;
         _rows.Insert(index, row);
-        row.Set("__index", NumberValueFactory.Create(index));
+        SetRowIndex(row, index);
         for (int i = index + 1; i < _rows.Count; i++)
         {
-            _rows[i].Set("__index", NumberValueFactory.Create(i));
+            SetRowIndex(_rows[i], i);
         }
 
         RowAdded?.Invoke(this, new TableRowEventArgs(index, row));
-        Notify(); 
+        Notify();
     }
 
     public void RemoveRow(int index)
     {
         if (index < 0 || index >= _rows.Count) return;
-        var removed = _rows[index]; 
+        var removed = _rows[index];
         _rows.RemoveAt(index);
-        for(int i = index; i < _rows.Count; i++)
+        RemoveRowIndex(removed);
+        for (int i = index; i < _rows.Count; i++)
         {
-            _rows[i].Set("__index", NumberValueFactory.Create(i));
+            SetRowIndex(_rows[i], i);
         }
-        RowRemoved?.Invoke(this, new TableRowEventArgs(index, removed)); 
+        RowRemoved?.Invoke(this, new TableRowEventArgs(index, removed));
         Notify();
     }
 
     public void ReplaceRow(int index, ObjectValue newRow)
     {
         if (index < 0 || index >= _rows.Count) return;
-        var old = _rows[index]; 
+        var old = _rows[index];
         _rows[index] = newRow;
-        newRow.Set("__index", NumberValueFactory.Create(index));
-        RowReplaced?.Invoke(this, new TableRowEventArgs(index, old, newRow)); 
+        RemoveRowIndex(old);
+        SetRowIndex(newRow, index);
+        RowReplaced?.Invoke(this, new TableRowEventArgs(index, old, newRow));
         Notify();
     }
 
     public void MoveRow(int oldIndex, int newIndex)
     {
         if (oldIndex < 0 || oldIndex >= _rows.Count
-            || newIndex < 0 || newIndex >= _rows.Count) 
+            || newIndex < 0 || newIndex >= _rows.Count)
             return;
-        _rows[newIndex].Set("__index", NumberValueFactory.Create(oldIndex));
-        _rows[oldIndex].Set("__index", NumberValueFactory.Create(newIndex));
+        SetRowIndex(_rows[newIndex], oldIndex);
+        SetRowIndex(_rows[oldIndex], newIndex);
         var row = _rows[oldIndex];
-        _rows.RemoveAt(oldIndex); 
+        _rows.RemoveAt(oldIndex);
         _rows.Insert(newIndex, row);
-       
+
         RowMoved?.Invoke(this, new TableRowEventArgs(newIndex, row)
-        { 
-            OldIndex = oldIndex, 
-            NewIndex = newIndex 
+        {
+            OldIndex = oldIndex,
+            NewIndex = newIndex
         });
         Notify();
     }
@@ -241,7 +265,7 @@ public class TableValue : IDisposable
         _subscribers.Clear();
 
         ComputedValue[] deps;
-        lock (_lock) { deps = _dependents.ToArray(); _dependents.Clear(); }
+        lock (_lock) { deps = _dependents.ToArray(); _dependents.Clear(); _objectToIndex.Clear(); }
         foreach (var cv in deps) cv.RemoveTableDependency(this);
     }
 }
