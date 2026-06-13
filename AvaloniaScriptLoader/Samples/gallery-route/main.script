@@ -67,7 +67,7 @@ loadPage("label")
 // ═══ 主窗口 ═══
 let main = window({
     title = "AvaloniaScriptLoader — 控件画廊 (Route)",
-    width = 880, height = 620,
+    width = 980, height = 820,
     systemDecorations = "none",
     extendClientArea = true,
     canResize = true,

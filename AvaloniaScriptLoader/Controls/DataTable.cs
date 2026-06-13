@@ -201,16 +201,16 @@ public class DataTable : Grid
     }
 
     /// <summary>
-    /// 行集未变时仅刷新可见单元格文本（共享 ObjectValue 的属性可能已被外部修改）
+    /// 行集未变时仅刷新可见单元格文本（共享 ObjectValue 的属性可能已被外部修改）。
+    /// 直接遍历 _rowControls 而非按连续索引假设迭代，兼容排序场景（全局索引可能不连续）。
     /// </summary>
     private void RefreshAllCellContent()
     {
-        for (int gIdx = _currentPage * _maxCount; gIdx < _tableValue!.Count; gIdx++)
+        foreach (var kv in _rowControls)
         {
-            if (_maxCount > 0 && gIdx >= (_currentPage + 1) * _maxCount) break;
-            if (!_rowControls.TryGetValue(gIdx, out var controls)) continue;
-
-            var row = _tableValue.GetRow(gIdx);
+            var gIdx = kv.Key;
+            var controls = kv.Value;
+            var row = _tableValue!.GetRow(gIdx);
             if (row == null) continue;
 
             for (int c = _dataColOffset; c < _colCount; c++)
@@ -471,12 +471,8 @@ public class DataTable : Grid
     {
         // 由选中操作 (SetSelected) 触发的 CellChanged 跳过，避免双重 FullRebuild，但不跳过全选
         if (_suppressCellEvent /*&& !_updatingAllHeaderCheckbox*/) return;
-        if (!OnPage(e.RowIndex)) return;
-        if (!_indexComparison.TryGetValue(e.RowIndex, out var comparisonControlIndex)) return;
-
-        // 增量更新：仅刷新被修改的那个单元格
-        
-        if (!_rowControls.TryGetValue(comparisonControlIndex, out var controls)) return;
+        if (!_indexComparison.ContainsKey(e.RowIndex)) return;
+        if (!_rowControls.TryGetValue(e.RowIndex, out var controls)) return;
         if (string.IsNullOrEmpty(e.Key)) return;
 
         var colIndex = Array.IndexOf(_bindings, e.Key);
@@ -673,11 +669,11 @@ public class DataTable : Grid
 
         
 
-        var start = _currentPage * _maxCount;
-
         for (int r = 0; r < rows.Count; r++)
         {
-            InsertRow(r, start + r, rows[r]);
+            var row = rows[r];
+            var globalIdx = _tableValue!.GetRowIndex(row);
+            InsertRow(r, globalIdx, row);
         }
 
         _indexComparison = rows.Select((x, i) => (i, _tableValue!.GetRowIndex(x)))
@@ -1074,11 +1070,11 @@ public class DataTable : Grid
     private bool IsAllSelected()
     {
         var r = GetSorted(GetPageItems());
-        var st = _currentPage * _maxCount;
 
         for (int i = 0; i < r.Count; i++)
         {
-            if (!IsSelected(st + i, r[i]))
+            var gIdx = _tableValue!.GetRowIndex(r[i]);
+            if (!IsSelected(gIdx, r[i]))
             {
                 return false;
             }
@@ -1090,12 +1086,12 @@ public class DataTable : Grid
     private void ToggleAll(bool s)
     {
         var r = GetSorted(GetPageItems());
-        var st = _currentPage * _maxCount;
 
         for (int i = 0; i < r.Count; i++)
         {
-            SetSelected(st + i, r[i], s);
-            RefreshRowStyle(st + i, r[i]);
+            var gIdx = _tableValue!.GetRowIndex(r[i]);
+            SetSelected(gIdx, r[i], s);
+            RefreshRowStyle(gIdx, r[i]);
         }
 
         UpdateHeaderCheckbox();

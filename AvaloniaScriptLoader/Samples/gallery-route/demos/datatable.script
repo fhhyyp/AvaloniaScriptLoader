@@ -38,6 +38,7 @@ var removeRow = () => {
 let selectItems = computed(()=> {
     let items = allRows.get().where(x => x.checked)
     let t = table(items, allRows)
+    print(items)
     return t
 })
 let selectCount = computed(() => {
