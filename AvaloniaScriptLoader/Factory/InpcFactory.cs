@@ -185,8 +185,16 @@ public static class InpcFactory
         {
             if (args.Count < 1 || args[0] is not ArrayValue av)
                 throw new ArgumentException("table() 期望 1 个数组参数");
+
             var t = new TableValue(av);
-            return t.Table; 
+
+            // 可选第 2 参数：源表引用，用于派生表编辑时向源表传播（双向同步）
+            if (args.Count > 1)
+            {
+                t.SourceTable = ExtractTable(args[1]);
+            }
+
+            return t.Table;
         });
     }
 

@@ -148,17 +148,92 @@ public class DataTable : Grid
 
     internal void SetTableValue(TableValue tv)
     {
-        _tableValue = tv;
-        //_allItems = tv.Get();
+        if (_tableValue == null)
+        {
+            // 首次绑定：全量构建
+            _tableValue = tv;
+            SubscribeTableEvents(tv);
+            FullRebuild();
+            return;
+        }
 
+        var oldTv = _tableValue;
+        var oldRows = oldTv.Rows;
+        var newRows = tv.Rows;
+
+        // 切换事件订阅：先退订旧表，再订阅新表
+        UnsubscribeTableEvents(oldTv);
+        _tableValue = tv;
+        SubscribeTableEvents(tv);
+
+        // 按 ObjectValue 引用对比：引用相同 = 行集未变（共享对象）
+        if (ReferenceEquals(oldRows, newRows) || oldRows.SequenceEqual(newRows))
+        {
+            // 行集无变化 → 仅刷新单元格文本和分页器（性能优化：跳过 FullRebuild）
+            RefreshAllCellContent();
+            BuildPager();
+            UpdateHeaderCheckbox();
+            return;
+        }
+
+        // 行集结构变化（增删行） → 全量重建
+        FullRebuild();
+    }
+
+    private void SubscribeTableEvents(TableValue tv)
+    {
         tv.RowAdded += OnRowAdded;
         tv.RowRemoved += OnRowRemoved;
         tv.RowReplaced += OnRowReplaced;
         tv.RowMoved += OnRowMoved;
         tv.CellChanged += OnCellChanged;
         tv.CollectionReset += OnReset;
+    }
 
-        FullRebuild();
+    private void UnsubscribeTableEvents(TableValue tv)
+    {
+        tv.RowAdded -= OnRowAdded;
+        tv.RowRemoved -= OnRowRemoved;
+        tv.RowReplaced -= OnRowReplaced;
+        tv.RowMoved -= OnRowMoved;
+        tv.CellChanged -= OnCellChanged;
+        tv.CollectionReset -= OnReset;
+    }
+
+    /// <summary>
+    /// 行集未变时仅刷新可见单元格文本（共享 ObjectValue 的属性可能已被外部修改）
+    /// </summary>
+    private void RefreshAllCellContent()
+    {
+        for (int gIdx = _currentPage * _maxCount; gIdx < _tableValue!.Count; gIdx++)
+        {
+            if (_maxCount > 0 && gIdx >= (_currentPage + 1) * _maxCount) break;
+            if (!_rowControls.TryGetValue(gIdx, out var controls)) continue;
+
+            var row = _tableValue.GetRow(gIdx);
+            if (row == null) continue;
+
+            for (int c = _dataColOffset; c < _colCount; c++)
+            {
+                var key = _bindings[c];
+                var raw = row.Properties.TryGetValue(key, out var v) ? v : Value.Null;
+                var newText = raw is StringValue s ? s.Value : raw.AsString();
+
+                var ctrlIndex = (_hasCheckbox ? 1 : 0) + (c - _dataColOffset);
+                if (ctrlIndex < 0 || ctrlIndex >= controls.Count) continue;
+
+                if (controls[ctrlIndex] is Border border && border.Child is Control child)
+                {
+                    if (child is TextBox tb && tb.Text != newText)
+                        tb.Text = newText;
+                    else if (child is TextBlock tbk && tbk.Text != newText)
+                        tbk.Text = newText;
+                }
+            }
+
+            // 同步复选框与行样式
+            RefreshRowStyle(gIdx, row);
+        }
     }
 
     internal void SetReadOnly(bool ro)

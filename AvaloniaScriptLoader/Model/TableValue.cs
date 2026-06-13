@@ -31,6 +31,10 @@ public class TableValue : IDisposable
     private readonly HashSet<ComputedValue> _dependents = [];
     /// <summary>对象引用 → 行索引映射（替代 ObjectValue.__index，避免多表共享对象时互相覆盖）</summary>
     private readonly Dictionary<ObjectValue, int> _objectToIndex = [];
+    /// <summary>派生源表（若此表由另一个 TableValue 过滤/派生而来）。SetCell 时会向源表传播。</summary>
+    public TableValue? SourceTable { get; set; }
+    /// <summary>内部只读行列表（供 DataTable 增量对比，不走依赖追踪）</summary>
+    internal List<ObjectValue> Rows => _rows;
     private bool _disposed;
 
     // 类型化事件
@@ -62,11 +66,11 @@ public class TableValue : IDisposable
 
     private static ObjectValue WrapTable(TableValue tableInstance)
     {
-        var d = new Dictionary<string, Value> 
+        var d = new Dictionary<string, Value>
         {
-            [ControlMeta.TypeKey] = StringValue.Create("table"), 
-            ["__table"] = new ClrObjectValue(tableInstance), 
-            ["value"] = tableInstance.Get(),
+            [ControlMeta.TypeKey] = StringValue.Create("table"),
+            ["__table"] = new ClrObjectValue(tableInstance),
+            ["value"] = new ArrayValue(tableInstance._rows.Select(x => (Value)x).ToList()),
             ["get"] = new FunctionValue("get", tableInstance.Get),
             ["set"] = new FunctionValue("set", (List<Value> a) =>
             {
@@ -205,14 +209,23 @@ public class TableValue : IDisposable
         var t = this._rows;
         Debug.WriteLine($"{index} {key} {oldValue} {newValue}");
         if (index < 0 || index >= _rows.Count) return;
-        _rows[index].Properties[key] = newValue;
-        CellChanged?.Invoke(this, new TableRowEventArgs(index, _rows[index]) 
+        var row = _rows[index];
+        row.Properties[key] = newValue;
+        CellChanged?.Invoke(this, new TableRowEventArgs(index, row)
         {
-            Key = key, 
-            OldValue = oldValue, 
-            NewValue = newValue 
+            Key = key,
+            OldValue = oldValue,
+            NewValue = newValue
         });
         Notify();
+
+        // 向源表传播编辑（派生表 → 源表双向同步）
+        if (SourceTable != null)
+        {
+            var srcIdx = SourceTable.GetRowIndex(row);
+            if (srcIdx >= 0)
+                SourceTable.SetCell(srcIdx, key, oldValue, newValue);
+        }
     }
 
     public void OnChange(Action<Value> callback)
