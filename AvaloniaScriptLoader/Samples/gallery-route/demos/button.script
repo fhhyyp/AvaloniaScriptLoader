@@ -3,7 +3,7 @@ import { stackpanel, label, button, textbox } from "avalonia.controls"
 import { _loaded } from "styles.script"
 
 var title = "Button 按钮"
-var desc = "操作控件。class 样式、onClick 事件、enabled/computed 动态控"
+var desc = "操作控件。class 样式、onClick 事件、enabled/computed 动态控件"
 var count = inpc(0, "twoway")
 var msg = inpc("—")
 

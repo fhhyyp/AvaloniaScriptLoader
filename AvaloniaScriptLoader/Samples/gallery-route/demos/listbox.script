@@ -9,16 +9,19 @@ var log = inpc([
     "[11:01] 自动备份完成",
 ], "twoway")
 
+let addLog = () => {
+    var arr = log.get()
+    arr = arr + ["新日志条目 " + str(len(arr) + 1)]
+    log.set(arr)
+}
+
 var render = () => stackpanel({spacing = 10, children = [
     listbox({items = log, height = 330, width = 420}),
-    stackpanel({orientation = "horizontal", spacing = 8, children = [
-        button({text = "+ 新增日志", onClick = () => {
-            var arr = log.get()
-            arr = arr + ["新日志条目 " + str(len(arr) + 1)]
-            log.set(arr)
-        }}),
-        button({text = "清空", onClick = () => { log.set([]) }}),
-    ]}),
+    stackpanel({orientation = "horizontal", spacing = 8, 
+        children = [
+            button({text = "+ 新增日志", onClick = addLog}),
+            button({text = "清空", onClick = () => { log.set([]) }}),
+        ]}),
     label({text = computed(() => str(len(log.get())) + " 条记录"), fontSize = 11, color = "#94a3b8"}),
 ]})
 return { title, desc, render }
