@@ -606,10 +606,7 @@ public class PropertyBinder
         {
             case "columns":  if (value is ArrayValue cols) table.SetColumns(cols); break;
             case "items":
-                if (value is ObjectValue obj 
-                    && obj.Properties.TryGetValue("__table", out var tvRef) 
-                    && tvRef is ClrObjectValue clr
-                    && clr.Value is TableValue tv)
+                if (value is ClrObjectValue clr && clr.Value is TableValue tv)
                     table.SetTableValue(tv);
                 break;
             case "isReadOnly":      table.SetReadOnly(value.AsBool()); break;

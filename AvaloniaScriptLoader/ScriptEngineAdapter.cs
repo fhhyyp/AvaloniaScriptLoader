@@ -4,6 +4,7 @@ using ScriptLang;
 using ScriptLang.Runtime;
 using AvaloniaScriptLoader.Model;
 using AvaloniaScriptLoader.Modules;
+using AvaloniaScriptLoader.Prototype;
 using AvaloniaScriptLoader.Wrapper;
 
 namespace AvaloniaScriptLoader;
@@ -55,6 +56,8 @@ public class ScriptEngineAdapter : IDisposable
             //IsPrintVMInfo = true,
             //IsPrintInputSciptContent = true
         };
+        _engine.PrototypeManager.Register<InpcPrototype>();
+        _engine.PrototypeManager.Register<TablePrototype>();
         _controlRegistry.Clear();
         RegisterBuiltinModules();
         Log.Info("ScriptEngineAdapter initialized");

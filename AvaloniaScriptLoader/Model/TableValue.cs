@@ -47,7 +47,7 @@ public class TableValue : IDisposable
 
     public int Count => _rows.Count;
 
-    public ObjectValue Table { get; private set; }
+    public ClrObjectValue Table { get; private set; }
 
     public TableValue(ArrayValue initial)
     {
@@ -64,32 +64,9 @@ public class TableValue : IDisposable
         Table = WrapTable(this);
     }
 
-    private static ObjectValue WrapTable(TableValue tableInstance)
+    private static ClrObjectValue WrapTable(TableValue tableInstance)
     {
-        var d = new Dictionary<string, Value>
-        {
-            [ControlMeta.TypeKey] = StringValue.Create("table"),
-            ["__table"] = new ClrObjectValue(tableInstance),
-            ["value"] = new ArrayValue(tableInstance._rows.Select(x => (Value)x).ToList()),
-            ["get"] = new FunctionValue("get", tableInstance.Get),
-            ["set"] = new FunctionValue("set", (List<Value> a) =>
-            {
-                if (a.Count > 0 && a[0] is ArrayValue av)
-                    tableInstance.Set(av);
-            }),
-            ["addRow"] = new FunctionValue("addRow", (List<Value> a) =>
-            {
-                if (a.Count > 0 && a[0] is ObjectValue r)
-                    tableInstance.AddRow(r);
-            }),
-            ["removeRow"] = new FunctionValue("removeRow", (List<Value> a) =>
-            {
-                if (a.Count > 0 && a[0].IsNumber)
-                    tableInstance.RemoveRow(a[0].As<int>());
-            }),
-        };
-       
-        return new ObjectValue(d);
+        return new ClrObjectValue(tableInstance);
     }
 
     public ArrayValue Get()
@@ -207,7 +184,7 @@ public class TableValue : IDisposable
     public void SetCell(int index, string key, Value oldValue, Value newValue)
     {
         var t = this._rows;
-        Debug.WriteLine($"{index} {key} {oldValue} {newValue}");
+        // Debug.WriteLine($"{index} {key} {oldValue} {newValue}");
         if (index < 0 || index >= _rows.Count) return;
         var row = _rows[index];
         row.Properties[key] = newValue;
