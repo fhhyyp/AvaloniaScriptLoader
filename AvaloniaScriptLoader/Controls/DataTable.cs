@@ -53,6 +53,7 @@ public class DataTable : Grid
     private bool _updatingAllHeaderCheckbox = false;
     private bool _updatingHeaderCheckbox = false;
     private bool _suppressCellEvent = false;
+    private bool _refreshingStyle = false;
     // Cached row controls: global data index → rendered controls on current page
     private readonly Dictionary<int, List<Control>> _rowControls = new();
 
@@ -636,7 +637,7 @@ public class DataTable : Grid
 
             cb.IsCheckedChanged += (_, _) =>
             {
-                if (_updatingAllHeaderCheckbox) return;
+                if (_updatingAllHeaderCheckbox || _refreshingStyle) return;
                 ToggleRow(gIdx, row);
             };
 
@@ -942,6 +943,7 @@ public class DataTable : Grid
         var bg = isSel ? Bg(_selBg) : Bg(gIdx % 2 == 0 ? _rowEvenBg : _rowOddBg);
         var fg = isSel ? Bg(_selFg) : Bg("#000000");
 
+        _refreshingStyle = true;
         foreach (var ctrl in controls)
         {
             if (ctrl is Border border)
@@ -951,10 +953,11 @@ public class DataTable : Grid
                     tbk.Foreground = fg;
                 else if (border.Child is TextBox tb)
                     tb.Foreground = fg;
-                //else if (border.Child is CheckBox checkBox )
-                //    checkBox.IsChecked = 
+                else if (border.Child is CheckBox checkBox)
+                    checkBox.IsChecked = isSel;
             }
         }
+        _refreshingStyle = false;
     }
 
     private void SetSelected(int g, ObjectValue? row, bool s)
